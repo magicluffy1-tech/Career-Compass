@@ -86,7 +86,9 @@
   .likert-scale{display:flex; gap:6px; flex-shrink:0;}
   .likert-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line-strong);background:#fff;font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;}
   .likert-btn.selected{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
-  .likert-caption{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .likert-caption-row{border-bottom:none !important; padding:0 0 10px !important;}
+  .likert-caption-row .likert-scale{min-width:184px; justify-content:space-between;}
+  .likert-caption-label{font-size:10.5px; color:var(--ink-soft); white-space:nowrap;}
   .submit-row{position:sticky; bottom:0; background:var(--paper-raised); padding-top:16px; margin-top:6px; border-top:1px solid var(--line);}
   .progress-note{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;}
 
@@ -136,6 +138,9 @@
   .job-col .group-label{font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin:12px 0 6px;}
   .job-col .group-label:first-of-type{margin-top:4px;}
   .chip-static{display:inline-block; background:var(--paper); font-size:11.5px; padding:3px 9px; border-radius:20px; margin:0 5px 5px 0; color:var(--ink);}
+  .chip-pick{display:inline-block; background:var(--paper); font-size:11.5px; padding:5px 11px; border-radius:20px; margin:0 6px 6px 0; color:var(--ink); border:1.5px solid transparent; cursor:pointer;}
+  .chip-pick:hover{border-color:var(--accent);}
+  .chip-pick.selected{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
   .more-toggle{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;padding:4px 0;text-decoration:underline;text-underline-offset:2px;}
   .hidden{display:none;}
   .adiga-note{font-size:11.5px; color:var(--ink-soft); margin-top:16px; line-height:1.6;}
@@ -195,7 +200,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxENTg-ZnBWzw4iPLxIa989nmS3Nx0t7lF6HfPMJ35Wd5_fv4Z9tSb8XszpwcGYoHk1/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -434,11 +439,14 @@ function demoHistory(){
   const now = Date.now();
   return [
     {date:new Date(now-300*864e5).toISOString(), grade:1, classSection:'2반', label:'1학년 1학기', scores:{R:20,I:24,A:22,S:32,E:22,C:27},
-      subjects:{'국어':3,'수학':3,'영어':3,'사회':4,'역사':3,'도덕':3,'과학':4,'기술·가정':3,'정보':3,'체육':4,'음악':3,'미술':3}},
+      subjects:{'국어':3,'수학':3,'영어':3,'사회':4,'역사':3,'도덕':3,'과학':4,'기술·가정':3,'정보':3,'체육':4,'음악':3,'미술':3},
+      desiredJobBefore:'수의사', chosenJobAfter:'사회복지사'},
     {date:new Date(now-150*864e5).toISOString(), grade:1, classSection:'2반', label:'1학년 2학기', scores:{R:22,I:31,A:20,S:29,E:23,C:25},
-      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':3,'도덕':3,'과학':5,'기술·가정':3,'정보':4,'체육':3,'음악':2,'미술':3}},
+      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':3,'도덕':3,'과학':5,'기술·가정':3,'정보':4,'체육':3,'음악':2,'미술':3},
+      desiredJobBefore:'', chosenJobAfter:'데이터분석가'},
     {date:new Date(now-10*864e5).toISOString(), grade:2, classSection:'5반', label:'2학년 1학기', scores:{R:24,I:38,A:18,S:27,E:24,C:22},
-      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':2,'도덕':2,'과학':5,'기술·가정':4,'정보':5,'체육':3,'음악':2,'미술':2}},
+      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':2,'도덕':2,'과학':5,'기술·가정':4,'정보':5,'체육':3,'음악':2,'미술':2},
+      desiredJobBefore:'프로그래머', chosenJobAfter:''},
   ];
 }
 function startDemo(){
@@ -536,8 +544,8 @@ function testView(){
     return `
       <div class="cat-block">
         <div class="cat-head"><span class="dot" style="background:${cat.hex}"></span><b>${cat.label}</b><span>· ${cat.desc}</span></div>
+        <div class="likert-row likert-caption-row"><div class="likert-q"></div><div class="likert-scale"><span class="likert-caption-label">전혀 그렇지 않다</span><span class="likert-caption-label">매우 그렇다</span></div></div>
         ${rows}
-        <div class="likert-caption"><span>전혀 그렇지 않다</span><span>매우 그렇다</span></div>
       </div>
     `;
   }).join('');
@@ -553,6 +561,11 @@ function testView(){
         <div class="field"><label for="test-label">이번 검사 시점 (선택)</label><input type="text" id="test-label" placeholder="예: 1학기 중간"></div>
       </div>
       ${blocks}
+      <div class="cat-block">
+        <div class="cat-head"><span class="dot" style="background:var(--ink)"></span><b>지금 원하는 직업</b><span>· 결과를 보기 전에 적어두는 항목이에요</span></div>
+        <div class="field"><label for="test-desired-job">지금 원하는 직업이 있나요? (선택)</label><input type="text" id="test-desired-job" placeholder="예: 수의사, 아직 잘 모르겠음 등"></div>
+        <div class="progress-note">나중에 검사 결과와 비교해볼 수 있어요. 없으면 비워둬도 괜찮아요.</div>
+      </div>
       ${subjectBlock()}
       <div class="submit-row">
         <button class="btn" id="submit-test-btn" style="width:100%;" onclick="submitTest()">검사 제출하고 저장하기</button>
@@ -568,8 +581,8 @@ function subjectBlock(){
   return `
     <div class="cat-block">
       <div class="cat-head"><span class="dot" style="background:var(--ink)"></span><b>좋아하는 과목</b><span>· 요즘 배우는 과목에 대한 흥미도</span></div>
+      <div class="subj-row likert-caption-row"><div class="likert-q"></div><div class="likert-scale"><span class="likert-caption-label">흥미 없음</span><span class="likert-caption-label">매우 흥미로움</span></div></div>
       ${rows}
-      <div class="likert-caption"><span>흥미 없음</span><span>매우 흥미로움</span></div>
     </div>
   `;
 }
@@ -595,6 +608,7 @@ async function submitTest(){
   const grade = Number(document.getElementById('test-grade').value);
   const classSection = document.getElementById('test-section').value.trim();
   const label = document.getElementById('test-label').value.trim();
+  const desiredJobBefore = document.getElementById('test-desired-job').value.trim();
   const scores = {R:0,I:0,A:0,S:0,E:0,C:0};
   QUESTIONS.forEach((q,i)=>{ scores[q.code]+=testAnswers[i]; });
   const subjects = {};
@@ -604,14 +618,14 @@ async function submitTest(){
   if(btn){ btn.disabled=true; btn.textContent='저장하는 중…'; }
 
   if(!state.isDemo){
-    const res = await apiCall('saveTest', {name:state.studentName, password:state.studentPassword, grade, classSection, label, scores, subjects});
+    const res = await apiCall('saveTest', {name:state.studentName, password:state.studentPassword, grade, classSection, label, desiredJobBefore, scores, subjects});
     if(!res.ok){
       alert(res.error || '저장에 실패했어요. 다시 시도해주세요.');
       if(btn){ btn.disabled=false; btn.textContent='검사 제출하고 저장하기'; }
       return;
     }
   }
-  const snapshot = {date:new Date().toISOString(), grade, classSection, label, scores, subjects};
+  const snapshot = {date:new Date().toISOString(), grade, classSection, label, desiredJobBefore, chosenJobAfter:'', scores, subjects};
   state.history.push(snapshot);
   state.viewIndex = state.history.length-1;
   testAnswers = new Array(QUESTIONS.length).fill(0);
@@ -677,10 +691,6 @@ function renderProfileBlock(history, viewIndex, setterFnName){
     ${delta}
     ${subjSection}
     ${trend}
-    <div class="no-print" style="margin-top:22px;">
-      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
-      <div class="progress-note" style="margin-top:8px;">인쇄 대화상자가 열리면 '대상'을 PDF로 저장으로 바꿔서 저장하면 돼요.</div>
-    </div>
   `;
 }
 
@@ -689,7 +699,14 @@ function progressView(){
   if(state.history.length===0){
     return `<div class="card"><div class="empty">아직 검사 기록이 없어요.<br>'검사하기' 탭에서 첫 검사를 해보세요.</div></div>`;
   }
-  return `<div class="card">${renderProfileBlock(state.history, state.viewIndex, 'setViewIndex')}</div>`;
+  return `
+    <div class="card">
+      ${renderProfileBlock(state.history, state.viewIndex, 'setViewIndex')}
+      <div class="no-print" style="margin-top:22px; border-top:1px solid var(--line); padding-top:20px;">
+        <button class="btn" onclick="setTab('analysis')">다음: 계열 분석 보기 →</button>
+      </div>
+    </div>
+  `;
 }
 function setViewIndex(i){ state.viewIndex=i; render(); }
 
@@ -765,6 +782,21 @@ function analysisView(){
     return `<div class="card"><div class="section-title">계열 분석</div><div class="empty">먼저 '검사하기' 탭에서 검사를 완료해야 분석할 수 있어요.</div></div>`;
   }
   const latest = state.history[state.history.length-1];
+  return `
+    <div class="card">
+      <div class="section-title">계열 분석</div>
+      <div class="section-desc">가장 최근 검사(${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}) 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
+      ${careerAnalysisBody(state.history, state.analysis, true)}
+      <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
+        <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요. 나의 변화·계열 분석 내용이 함께 저장돼요.</div>
+      </div>
+    </div>
+  `;
+}
+function careerAnalysisBody(history, analysis, interactive){
+  if(history.length===0) return `<div class="empty">아직 검사 기록이 없어요.</div>`;
+  const latest = history[history.length-1];
   const top = topTwoCodes(latest.scores);
   const suggestion = top ? FIELD_MAP[pairKey(top[0], top[1])] : null;
 
@@ -815,30 +847,62 @@ function analysisView(){
     `;
   }
 
+  let jobPickSection = '';
+  if(top){
+    const choicePool = Array.from(new Set([
+      ...JOB_INFO[top[0]].representative, ...JOB_INFO[top[0]].emerging,
+      ...JOB_INFO[top[1]].representative, ...JOB_INFO[top[1]].emerging
+    ]));
+    const desiredBefore = latest.desiredJobBefore || '';
+    const chosenAfter = latest.chosenJobAfter || '';
+    const chips = choicePool.map(j=>`<button type="button" class="chip-pick ${chosenAfter===j?'selected':''}" onclick="chooseJob('${esc(j).replace(/'/g,"\\'")}')">${esc(j)}</button>`).join('');
+    const pickerBlock = interactive ? `
+      <div class="pill-row" style="margin:10px 0 12px;">${chips}</div>
+      <div class="row2">
+        <div class="field" style="margin-bottom:0;"><input type="text" id="custom-job-input" placeholder="목록에 없다면 직접 입력" value="${chosenAfter && !choicePool.includes(chosenAfter) ? esc(chosenAfter) : ''}"></div>
+        <button class="btn btn-ghost btn-sm" onclick="chooseCustomJob()" style="align-self:flex-start; justify-self:start;">이 직업으로 기록하기</button>
+      </div>
+    ` : '';
+    let compareLine = '';
+    if(desiredBefore || chosenAfter){
+      compareLine = `<div class="highlight-box" style="margin-top:14px;">`
+        + (desiredBefore ? `검사 전 희망 직업: <strong>${esc(desiredBefore)}</strong>` : '검사 전에는 희망 직업을 적지 않았어요.')
+        + (chosenAfter ? ` → 지금 선택: <strong>${esc(chosenAfter)}</strong>` : (interactive ? ' · 아직 선택하지 않았어요.' : ''))
+        + `</div>`;
+    }
+    jobPickSection = `
+      <div class="section-title" style="font-size:17px;margin-top:28px;">지금 끌리는 직업 기록하기</div>
+      <div class="section-desc">위 정보를 보고 지금 이 순간 가장 끌리는 직업 하나를 골라두면, 검사 전 희망과 비교하고 다음 검사 때 다시 비교해볼 수 있어요. 언제든 바꿀 수 있어요.</div>
+      ${pickerBlock}
+      ${compareLine}
+    `;
+  }
+
   let aiBody = '';
-  if(state.isDemo){
-    aiBody += `<div class="progress-note">샘플 모드에서는 AI 분석을 사용할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.</div>`;
+  if(interactive){
+    if(state.isDemo){
+      aiBody += `<div class="progress-note">샘플 모드에서는 AI 분석을 사용할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.</div>`;
+    } else {
+      if(state.analysisError) aiBody += `<div class="error-banner"><span>${esc(state.analysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runAnalysis()">다시 시도</button></div>`;
+      if(state.analysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> AI가 비교 분석을 준비하고 있어요…</div>`; }
+      else if(analysis){ aiBody += renderAnalysisResult(analysis); aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runAnalysis()">다시 분석하기</button></div>`; }
+      else { aiBody += `<button class="btn" onclick="runAnalysis()">AI에게 자세한 비교 분석 받기</button>`; }
+    }
   } else {
-    if(state.analysisError) aiBody += `<div class="error-banner"><span>${esc(state.analysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runAnalysis()">다시 시도</button></div>`;
-    if(state.analysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> AI가 비교 분석을 준비하고 있어요…</div>`; }
-    else if(state.analysis){ aiBody += renderAnalysisResult(state.analysis); aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runAnalysis()">다시 분석하기</button></div>`; }
-    else { aiBody += `<button class="btn" onclick="runAnalysis()">AI에게 자세한 비교 분석 받기</button>`; }
+    aiBody = analysis ? renderAnalysisResult(analysis) : `<div class="progress-note">이 학생은 아직 AI 심화 분석을 받지 않았어요.</div>`;
   }
 
   return `
-    <div class="card">
-      <div class="section-title">계열 분석</div>
-      <div class="section-desc">가장 최근 검사(${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}) 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
-      <div class="suggestion-card">
-        <span class="suggestion-tag">${top ? top[0]+top[1] : '—'}</span>
-        <div><strong>${suggestion ? suggestion.name : '분석할 데이터가 더 필요해요'}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${suggestion?suggestion.blurb:''}</div></div>
-      </div>
-      ${typeRow}
-      ${jobSection}
-      <div class="section-title" style="font-size:17px;margin-top:28px;">AI 심화 비교 분석</div>
-      <div class="section-desc">검사 이력 전체(변화 흐름 포함)를 바탕으로 AI가 계열을 비교 설명해줘요.</div>
-      ${aiBody}
+    <div class="suggestion-card">
+      <span class="suggestion-tag">${top ? top[0]+top[1] : '—'}</span>
+      <div><strong>${suggestion ? suggestion.name : '분석할 데이터가 더 필요해요'}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${suggestion?suggestion.blurb:''}</div></div>
     </div>
+    ${typeRow}
+    ${jobSection}
+    ${jobPickSection}
+    <div class="section-title" style="font-size:17px;margin-top:28px;">AI 심화 비교 분석</div>
+    <div class="section-desc">검사 이력 전체(변화 흐름 포함)를 바탕으로 AI가 계열을 비교 설명해줘요.</div>
+    ${aiBody}
   `;
 }
 function toggleMore(id, btn){
@@ -858,6 +922,20 @@ function renderAnalysisResult(a){
     </div>
   `).join('');
   return `<div style="margin-top:6px;"><p style="font-size:13.5px; line-height:1.6;">${esc(a.summary||'')}</p><div class="candidates-grid">${candidates}</div><div class="encourage-box">${esc(a.encouragement||'')}</div></div>`;
+}
+async function chooseJob(job){
+  if(state.isDemo){ alert('샘플 모드에서는 저장할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.'); return; }
+  const latest = state.history[state.history.length-1];
+  latest.chosenJobAfter = job;
+  render();
+  const res = await apiCall('updateChosenJob', {name:state.studentName, password:state.studentPassword, chosenJob: job});
+  if(!res.ok){ alert(res.error || '저장에 실패했어요. 다시 시도해주세요.'); }
+}
+async function chooseCustomJob(){
+  const input = document.getElementById('custom-job-input');
+  const val = input ? input.value.trim() : '';
+  if(!val){ alert('직업 이름을 입력해주세요.'); return; }
+  await chooseJob(val);
 }
 async function runAnalysis(){
   if(state.isDemo){
@@ -997,10 +1075,21 @@ async function openTeacherStudent(name){
 function closeTeacherStudent(){ state.teacherViewing=null; render(); }
 function setTeacherViewIndex(i){ state.teacherViewIndex=i; render(); }
 function teacherDetailView(){
-  const {name, history} = state.teacherViewing;
+  const {name, history, analysis} = state.teacherViewing;
   if(state.teacherLoadingDetail){
     return `<div class="card"><div class="loading-row"><span class="spinner"></span> 불러오는 중…</div></div>`;
   }
+  const analysisCard = history.length ? `
+    <div class="card" style="margin-top:18px;">
+      <div class="section-title">계열 분석</div>
+      <div class="section-desc">가장 최근 검사 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
+      ${careerAnalysisBody(history, analysis || null, false)}
+      <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
+        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
+        <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요.</div>
+      </div>
+    </div>
+  ` : '';
   return `
     <button class="btn btn-ghost btn-sm no-print" onclick="closeTeacherStudent()">← 목록으로</button>
     <div class="card" style="margin-top:14px;">
@@ -1010,6 +1099,7 @@ function teacherDetailView(){
       </div>
       ${history.length===0 ? `<div class="empty">아직 검사 기록이 없어요.</div>` : renderProfileBlock(history, state.teacherViewIndex, 'setTeacherViewIndex')}
     </div>
+    ${analysisCard}
   `;
 }
 async function resetStudentPassword(name){
@@ -1114,6 +1204,12 @@ function buildPrintReport(studentName, history, analysis){
       </div>
       ${typeRow}
       <div class="job-cols">${jobCols}</div>
+      ${(latest.desiredJobBefore || latest.chosenJobAfter) ? `
+        <div class="highlight-box" style="margin-top:14px;">
+          ${latest.desiredJobBefore ? `검사 전 희망 직업: <strong>${esc(latest.desiredJobBefore)}</strong>` : '검사 전에는 희망 직업을 적지 않았어요.'}
+          ${latest.chosenJobAfter ? ` → 계열 분석 후 선택: <strong>${esc(latest.chosenJobAfter)}</strong>` : ''}
+        </div>
+      ` : ''}
 
       <hr class="print-divider">
       <div class="section-title" style="font-size:16px;">AI 심화 비교 분석</div>
