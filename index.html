@@ -169,6 +169,7 @@
   .student-chip{display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; background:var(--paper); border:none; border-radius:10px; padding:11px 14px; font-size:14.5px; font-weight:600; color:var(--ink); cursor:pointer;}
   .student-chip:hover{background:var(--accent-soft);}
   .student-chip-sub{color:var(--ink-soft); font-family:var(--font-mono); font-size:11px; font-weight:500; margin-left:8px; flex-shrink:0;}
+  .change-badge{font-family:var(--font-mono); font-size:10px; font-weight:700; background:var(--accent); color:#fff; padding:2px 7px; border-radius:8px; margin-left:8px; flex-shrink:0;}
   .footer-note{font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:36px; line-height:1.7;}
 
   @media print{
@@ -194,7 +195,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbwkV-p5Vdd0OTRPaRSQBUCNcUY0K8m_x5auSHvA_AfhzBtJ9PLMNJMyy_8e7cq2IVpz/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -884,7 +885,7 @@ function teacherShell(){
       <button class="btn btn-ghost btn-sm" onclick="teacherLogout()">로그아웃</button>
     </div>
     <div id="tab-content">${state.teacherViewing ? teacherDetailView() : teacherListView()}</div>
-    ${state.teacherViewing ? teacherPrintReportHTML() : ''}
+    ${state.teacherViewing ? teacherPrintReportHTML() : teacherBoardPrintHTML()}
   `;
 }
 function teacherListView(){
@@ -894,8 +895,14 @@ function teacherListView(){
   const rows = state.teacherStudents.filter(s=> filter==='all' || s.currentClass===filter);
   const view = state.teacherView || 'list';
   const desc = view==='byType'
-    ? '가장 최근 검사의 1순위 성향을 기준으로 학생들을 묶어서 보여줘요. 아직 검사하지 않은 학생은 따로 모아뒀어요.'
+    ? '가장 최근 검사의 1순위 성향을 기준으로 학생들을 묶어서 보여줘요. 이름 옆 배지는 지난 검사 대비 1순위 유형이 바뀐 경우예요. 아직 검사하지 않은 학생은 따로 모아뒀어요.'
     : '전체 학생의 검사 현황이에요. 학급은 각 학생의 가장 최근 검사 시점 기준이라, 학년이 올라가거나 반이 바뀌어도 자동으로 최신 상태로 보여요. 이름을 눌러 상세 결과를 볼 수 있어요.';
+  const printBtn = view==='byType' ? `
+    <div class="no-print" style="margin-top:22px;">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 이 보드 PDF로 저장</button>
+      <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 파일로 저장돼서, 화면에 띄우거나 인쇄해서 게시할 수 있어요.</div>
+    </div>
+  ` : '';
   return `
     <div class="card">
       <div class="section-title">학급 현황</div>
@@ -906,6 +913,23 @@ function teacherListView(){
         <button class="tab-btn ${view==='byType'?'active':''}" onclick="setTeacherView('byType')">유형별 보기</button>
       </div>
       ${view==='byType' ? teacherByTypeBody(rows) : teacherListTableBody(rows)}
+      ${printBtn}
+    </div>
+  `;
+}
+function teacherBoardPrintHTML(){
+  if(state.teacherViewing || state.teacherView !== 'byType') return '';
+  const filter = state.teacherClassFilter || 'all';
+  const rows = state.teacherStudents.filter(s=> filter==='all' || s.currentClass===filter);
+  if(rows.length===0) return '';
+  return `
+    <div class="print-only" id="teacher-board-print">
+      <div class="print-header">
+        <div class="print-school">서산명지중학교</div>
+        <div class="print-title">학급 진로 유형 현황판</div>
+        <div class="print-meta">${filter==='all'?'전체 학급':esc(filter)} · ${fmtDate(new Date().toISOString())} 기준</div>
+      </div>
+      ${teacherByTypeBody(rows)}
     </div>
   `;
 }
@@ -941,7 +965,13 @@ function teacherByTypeBody(students){
       <div class="type-col">
         <div class="type-col-head">${typeIcon(c.code)}<div><h3>${c.label} <span class="count-tag">${c.code}</span></h3><div class="count-tag">${list.length}명</div></div></div>
         <div class="type-col-list">
-          ${list.length ? list.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')">${esc(s.name)}<span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`).join('') : `<div class="progress-note">아직 없음</div>`}
+          ${list.length ? list.map(s=>{
+            const prevTop = s.prevScores ? topTwoCodes(s.prevScores) : null;
+            const curTop = s.scores ? topTwoCodes(s.scores) : null;
+            const changed = prevTop && curTop && prevTop[0] !== curTop[0];
+            const badge = changed ? `<span class="change-badge">${prevTop[0]}→${curTop[0]}</span>` : '';
+            return `<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')"><span>${esc(s.name)}${badge}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`;
+          }).join('') : `<div class="progress-note">아직 없음</div>`}
         </div>
       </div>
     `;
