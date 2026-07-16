@@ -159,14 +159,16 @@
   td{padding:10px 10px; border-bottom:1px solid var(--line);}
   .code-badge{font-family:var(--font-mono); font-weight:700; background:var(--ink); color:var(--paper-raised); padding:2px 7px; border-radius:6px; font-size:11px;}
   .count-tag{font-size:11.5px; color:var(--ink-soft);}
-  .type-cols-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
-  .type-col{border:1px solid var(--line); border-radius:12px; padding:14px; background:#fff;}
-  .type-col-head{display:flex; align-items:flex-start; gap:8px; margin-bottom:10px;}
-  .type-col-head h3{font-size:14px;}
-  .type-col-list{display:flex; flex-direction:column; gap:6px;}
-  .student-chip{display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; background:var(--paper); border:none; border-radius:8px; padding:7px 10px; font-size:12.5px; color:var(--ink); cursor:pointer;}
+  .type-cols-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px;}
+  .type-col{border:1px solid var(--line); border-radius:14px; padding:20px; background:#fff;}
+  .type-col-head{display:flex; align-items:flex-start; gap:12px; margin-bottom:16px;}
+  .type-col-head .type-icon{width:44px;height:44px;}
+  .type-col-head h3{font-size:17px;}
+  .type-col-head .count-tag{font-size:13px;}
+  .type-col-list{display:flex; flex-direction:column; gap:8px;}
+  .student-chip{display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; background:var(--paper); border:none; border-radius:10px; padding:11px 14px; font-size:14.5px; font-weight:600; color:var(--ink); cursor:pointer;}
   .student-chip:hover{background:var(--accent-soft);}
-  .student-chip-sub{color:var(--ink-soft); font-family:var(--font-mono); font-size:10px; margin-left:8px; flex-shrink:0;}
+  .student-chip-sub{color:var(--ink-soft); font-family:var(--font-mono); font-size:11px; font-weight:500; margin-left:8px; flex-shrink:0;}
   .footer-note{font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:36px; line-height:1.7;}
 
   @media print{
@@ -192,7 +194,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbyeJLUCOs7yFbVVX5rS4eew5TJgDMX6-_Ub3bVgTtyQTeyfJp1_qmc3HzObjwFQEmr1/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -933,18 +935,6 @@ function teacherByTypeBody(students){
     const top = s.scores ? topTwoCodes(s.scores) : null;
     if(top) groups[top[0]].push(s); else untested.push(s);
   });
-  const total = students.length;
-  const summaryBars = CATS.map(c=>{
-    const n = groups[c.code].length;
-    const pct = total ? Math.round(n/total*100) : 0;
-    return `
-      <div class="legend-row">
-        <span class="dot" style="background:${c.hex}"></span>
-        <span class="legend-label">${c.label}</span>
-        <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${pct}%; background:${c.hex}"></span></span>
-        <span class="legend-score">${n}명</span>
-      </div>`;
-  }).join('');
   const columns = CATS.map(c=>{
     const list = groups[c.code];
     return `
@@ -961,7 +951,6 @@ function teacherByTypeBody(students){
     <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')">${esc(s.name)}</button>`).join('')}</div>
   ` : '';
   return `
-    <div class="legend" style="margin-bottom:22px; max-width:420px;">${summaryBars}</div>
     <div class="type-cols-grid">${columns}</div>
     ${untestedBlock}
   `;
