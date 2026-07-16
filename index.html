@@ -194,7 +194,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxNnuV2Z47Jz0F59qwL2jrGPF3opjtuR4SREMts-MokJiKhKFvB7n16AL-9tw9bY-2E/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -360,7 +360,7 @@ let subjectAnswers = new Array(SUBJECTS.length).fill(0);
 
 /* ============ Utility ============ */
 function pairKey(a,b){ return [a,b].sort((x,y)=>ORDER.indexOf(x)-ORDER.indexOf(y)).join(''); }
-function esc(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+function esc(str){ return String(str==null?'':str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
 function fmtDate(iso){ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
 function topTwoCodes(scores){
   const arr = ORDER.map(c=>[c,scores[c]]).sort((a,b)=>b[1]-a[1]);
