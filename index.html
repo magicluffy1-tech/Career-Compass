@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>진로 나침반</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1F2A24; --ink-soft:#4B564E;
+    --paper:#E9EDE4; --paper-raised:#F7F8F3;
+    --accent:#2B5F6B; --accent-soft:rgba(43,95,107,0.13);
+    --line:rgba(31,42,36,0.16); --line-strong:rgba(31,42,36,0.32);
+    --r:#8A6D3B; --i:#2B5F6B; --a:#8E4585; --s:#B0473E; --e:#C98A2B; --c:#3D6B4A;
+    --radius:16px;
+    --font-display:'Space Grotesk',sans-serif;
+    --font-body:'Inter',sans-serif;
+    --font-mono:'IBM Plex Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:var(--font-body); background:var(--paper); color:var(--ink); -webkit-font-smoothing:antialiased;}
+  #root{max-width:940px;margin:0 auto;padding:28px 20px 80px;}
+  h1,h2,h3{font-family:var(--font-display);margin:0;}
+  button{font-family:var(--font-body);cursor:pointer;}
+  input,select,textarea{font-family:var(--font-body);}
+  button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .hero{background:var(--ink); color:var(--paper-raised); border-radius:var(--radius); padding:40px 32px; margin-bottom:24px; position:relative; overflow:hidden;}
+  .hero-eyebrow{font-family:var(--font-mono); font-size:12px; letter-spacing:0.14em; text-transform:uppercase; color:#9FB3A4; margin-bottom:14px;}
+  .school-badge{font-family:var(--font-display); font-size:14.5px; font-weight:600; color:var(--paper-raised); letter-spacing:0.02em; margin-bottom:8px;}
+  .hero h1{font-size:34px; font-weight:600; line-height:1.15; letter-spacing:-0.01em;}
+  .hero p{font-size:15px; line-height:1.6; color:#C7D2C6; max-width:520px; margin-top:12px;}
+  .compass-mark{position:absolute; right:-30px; top:-30px; width:200px; height:200px; opacity:0.16;}
+  .demo-link{display:inline-block;margin-top:14px;font-size:13px;color:var(--ink-soft);text-decoration:underline;text-underline-offset:3px;background:none;border:none;padding:0;}
+
+  .card{background:var(--paper-raised); border:1px solid var(--line); border-radius:var(--radius); padding:24px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;}
+  .field .hint{font-size:12px;color:var(--ink-soft);font-weight:400;margin-top:4px;}
+  .field input[type=text], .field input[type=password], .field select, .field textarea{width:100%; padding:11px 13px; border:1px solid var(--line-strong); border-radius:10px; background:#fff; font-size:14px; color:var(--ink);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:560px){.row2{grid-template-columns:1fr;}}
+
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; border:none; border-radius:10px; padding:12px 20px; font-size:14px; font-weight:600; letter-spacing:0.01em; background:var(--accent); color:#fff; transition:transform .12s ease, opacity .12s ease;}
+  .btn:hover{opacity:0.92;} .btn:active{transform:scale(0.98);} .btn:disabled{opacity:0.45;cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line-strong);}
+  .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
+  .btn-danger-ghost{background:transparent;color:#8A3A32;border:1px solid rgba(138,58,50,0.35);}
+
+  .disclosure{font-size:12px; line-height:1.6; color:var(--ink-soft); background:var(--accent-soft); border:1px solid var(--line); border-radius:10px; padding:12px 14px; margin-top:18px;}
+
+  .topbar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:18px; flex-wrap:wrap;}
+  .who{display:flex; align-items:center; gap:10px;}
+  .avatar{width:38px;height:38px;border-radius:50%;background:var(--ink);color:var(--paper-raised); display:flex;align-items:center;justify-content:center;font-family:var(--font-display);font-weight:600;font-size:15px;}
+  .who-name{font-weight:600;font-size:15px;}
+  .who-id{font-family:var(--font-mono);font-size:12px;color:var(--ink-soft);}
+
+  .tabs{display:flex; gap:6px; background:var(--paper-raised); border:1px solid var(--line); border-radius:12px; padding:5px; margin-bottom:20px; flex-wrap:wrap;}
+  .tab-btn{flex:1; min-width:110px; background:transparent; border:none; border-radius:8px; padding:10px 12px; font-size:13.5px; font-weight:600; color:var(--ink-soft);}
+  .tab-btn.active{background:var(--ink); color:var(--paper-raised);}
+
+  .section-title{font-size:20px; font-weight:600; margin-bottom:4px;}
+  .section-desc{font-size:13.5px; color:var(--ink-soft); margin-bottom:18px; line-height:1.55;}
+  .empty{text-align:center; padding:36px 20px; color:var(--ink-soft); font-size:13.5px; line-height:1.6;}
+
+  /* ---- test / likert ---- */
+  .test-meta{display:flex; gap:14px; flex-wrap:wrap; margin-bottom:20px;}
+  .test-meta .field{flex:1;min-width:160px;margin-bottom:0;}
+  .cat-block{margin-bottom:22px; padding-top:18px; border-top:1px solid var(--line);}
+  .cat-block:first-of-type{border-top:none;padding-top:0;}
+  .cat-head{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .cat-head .dot{width:11px;height:11px;border-radius:50%;}
+  .cat-head b{font-size:14.5px;}
+  .cat-head span{font-size:12px;color:var(--ink-soft);}
+  .likert-row, .subj-row{display:flex; align-items:center; justify-content:space-between; gap:14px; padding:10px 0; border-bottom:1px dashed var(--line);}
+  .likert-row:last-child, .subj-row:last-child{border-bottom:none;}
+  .subject-bars{display:flex; flex-direction:column; gap:8px; margin-top:10px;}
+  .subject-bar-row{display:flex; align-items:center; gap:10px;}
+  .subject-bar-label{font-size:12.5px; font-weight:600; width:74px; flex-shrink:0;}
+  .subject-bar-track{flex:1; height:8px; background:var(--line); border-radius:6px; overflow:hidden;}
+  .subject-bar-fill{height:100%; border-radius:6px; background:var(--ink);}
+  .subject-bar-score{font-family:var(--font-mono); font-size:11.5px; width:16px; text-align:right; color:var(--ink-soft);}
+  .likert-q{font-size:13.5px; line-height:1.5; flex:1;}
+  .likert-scale{display:flex; gap:6px; flex-shrink:0;}
+  .likert-btn{width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line-strong);background:#fff;font-family:var(--font-mono);font-size:12.5px;font-weight:600;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;}
+  .likert-btn.selected{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
+  .likert-caption{display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-soft);margin-top:4px;}
+  .submit-row{position:sticky; bottom:0; background:var(--paper-raised); padding-top:16px; margin-top:6px; border-top:1px solid var(--line);}
+  .progress-note{font-size:12.5px;color:var(--ink-soft);margin-bottom:8px;}
+
+  /* ---- progress / radar ---- */
+  .snap-chips{display:flex; gap:6px; margin-bottom:20px; flex-wrap:wrap; overflow-x:auto;}
+  .snap-chips button{background:#fff; border:1.5px solid var(--line-strong); border-radius:20px; padding:7px 13px; font-size:12px; font-weight:600; color:var(--ink-soft); white-space:nowrap;}
+  .snap-chips button.active{background:var(--ink); color:var(--paper-raised); border-color:var(--ink);}
+  .radar-wrap{display:flex; gap:28px; flex-wrap:wrap; align-items:center;}
+  .radar-svg{flex:0 0 auto;}
+  .legend{flex:1; min-width:220px; display:flex; flex-direction:column; gap:10px;}
+  .legend-row{display:flex; align-items:center; gap:10px;}
+  .legend-row .dot{width:11px;height:11px;border-radius:50%;flex-shrink:0;}
+  .legend-label{font-size:13px; font-weight:600; width:56px; flex-shrink:0;}
+  .legend-bar-track{flex:1; height:8px; background:var(--line); border-radius:6px; overflow:hidden;}
+  .legend-bar-fill{height:100%; border-radius:6px;}
+  .legend-score{font-family:var(--font-mono); font-size:12px; width:26px; text-align:right; color:var(--ink-soft);}
+  .highlight-box{margin-top:22px; background:var(--accent-soft); border:1px solid var(--line); border-radius:12px; padding:16px 18px; font-size:13.5px; line-height:1.6;}
+  .delta-box{margin-top:14px; border:1px solid var(--line); border-radius:12px; padding:14px 16px; font-size:13px; line-height:1.7; background:#fff;}
+  .delta-tag{font-family:var(--font-mono); font-size:11.5px; font-weight:700; padding:2px 7px; border-radius:6px; background:var(--paper); margin-right:4px;}
+  .trend-scroll{overflow-x:auto; padding-bottom:6px;}
+  .trend-legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px;}
+  .trend-legend span{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--ink-soft);}
+  .trend-legend .dot{width:9px;height:9px;border-radius:50%;}
+
+  /* ---- analysis ---- */
+  .type-icon{width:30px;height:30px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .type-icon svg{width:85%;height:85%;display:block;}
+  .type-row{display:flex; gap:7px; overflow-x:auto; padding:14px 2px 6px; margin:-14px 0 22px;}
+  @media (min-width:640px){ .type-row{ justify-content:center; } }
+  .type-card{flex:0 0 88px; border:1.5px solid var(--line); border-radius:10px; padding:9px 6px; text-align:center; background:#fff; position:relative;}
+  .type-card.rank1{border-color:var(--ink); box-shadow:0 0 0 1.5px var(--ink);}
+  .type-card.rank2{border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent);}
+  .rank-ribbon{position:absolute; top:-8px; left:50%; transform:translateX(-50%); font-family:var(--font-mono); font-size:8.5px; font-weight:700; padding:1px 6px; border-radius:10px; background:var(--ink); color:var(--paper-raised); white-space:nowrap;}
+  .type-card.rank2 .rank-ribbon{background:var(--accent);}
+  .type-card .type-icon{width:22px;height:22px;margin:2px auto 6px;}
+  .type-card .code-line{font-family:var(--font-mono); font-size:10px; font-weight:700; color:var(--ink-soft);}
+  .type-card .label-line{font-size:12px; font-weight:700; margin-top:1px;}
+  .job-cols{display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:6px;}
+  @media (max-width:640px){.job-cols{grid-template-columns:1fr;}}
+  .job-col{border:1px solid var(--line); border-radius:12px; padding:16px; background:#fff;}
+  .job-col-head{display:flex; align-items:center; gap:10px; margin-bottom:12px;}
+  .job-col-head .rank-num{width:22px;height:22px;border-radius:50%;background:var(--ink);color:var(--paper-raised);font-family:var(--font-mono);font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .job-col-head.rank2 .rank-num{background:var(--accent);}
+  .job-col h3{font-size:14.5px;}
+  .job-col .field-tag{font-size:11.5px; color:var(--ink-soft);}
+  .job-col .group-label{font-size:11px; font-weight:700; color:var(--ink-soft); text-transform:uppercase; letter-spacing:0.03em; margin:12px 0 6px;}
+  .job-col .group-label:first-of-type{margin-top:4px;}
+  .chip-static{display:inline-block; background:var(--paper); font-size:11.5px; padding:3px 9px; border-radius:20px; margin:0 5px 5px 0; color:var(--ink);}
+  .more-toggle{background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;padding:4px 0;text-decoration:underline;text-underline-offset:2px;}
+  .hidden{display:none;}
+  .adiga-note{font-size:11.5px; color:var(--ink-soft); margin-top:16px; line-height:1.6;}
+  .suggestion-card{display:flex; gap:14px; align-items:flex-start; background:var(--accent-soft); border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin-bottom:18px;}
+  .suggestion-tag{font-family:var(--font-mono); font-size:11px; font-weight:700; background:var(--ink); color:var(--paper-raised); padding:3px 8px; border-radius:6px; flex-shrink:0; margin-top:2px;}
+  .candidates-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; margin-top:16px;}
+  .candidate-card{border:1px solid var(--line); border-radius:12px; padding:16px; background:#fff;}
+  .candidate-card h3{font-size:15px; margin-bottom:8px;}
+  .candidate-card p{font-size:12.5px; color:var(--ink-soft); line-height:1.55; margin:6px 0;}
+  .candidate-card .kicker{font-family:var(--font-mono); font-size:10.5px; color:var(--accent); font-weight:700; letter-spacing:0.03em; text-transform:uppercase;}
+  .pill-row{display:flex; flex-wrap:wrap; gap:5px; margin-top:6px;}
+  .pill-row span{background:var(--paper); font-size:11px; padding:3px 8px; border-radius:20px; color:var(--ink);}
+  .encourage-box{margin-top:18px; border-left:3px solid var(--accent); padding:12px 16px; font-size:13px; line-height:1.6; color:var(--ink-soft); background:var(--paper-raised);}
+  .spinner{width:18px;height:18px;border-radius:50%;border:2px solid var(--line-strong); border-top-color:var(--accent); animation:spin .7s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .loading-row{display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft); padding:20px 0;}
+  .error-banner{background:#F7EAE8; border:1px solid rgba(138,58,50,0.3); color:#8A3A32; border-radius:10px; padding:12px 14px; font-size:13px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:center; gap:10px;}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); padding:8px 10px; border-bottom:1.5px solid var(--line-strong);}
+  td{padding:10px 10px; border-bottom:1px solid var(--line);}
+  .code-badge{font-family:var(--font-mono); font-weight:700; background:var(--ink); color:var(--paper-raised); padding:2px 7px; border-radius:6px; font-size:11px;}
+  .footer-note{font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:36px; line-height:1.7;}
+
+  @media print{
+    .no-print{ display:none !important; }
+    body{ background:#fff; }
+    #root{ max-width:100%; padding:0; }
+    .card{ border:none; padding:0; }
+  }
+  .print-only{ display:none; }
+  .print-header{ margin-bottom:20px; }
+  .print-header .print-school{ font-family:var(--font-display); font-weight:700; font-size:15px; }
+  .print-header .print-title{ font-family:var(--font-display); font-weight:600; font-size:22px; margin-top:2px; }
+  .print-header .print-meta{ font-size:12.5px; color:var(--ink-soft); margin-top:4px; }
+  .print-divider{ border:none; border-top:1px solid var(--line-strong); margin:26px 0; }
+  @media print{
+    .print-only{ display:block !important; }
+    #tab-content{ display:none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script>
+/* ============ Backend config ============ */
+/* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
+
+async function apiCall(action, payload){
+  if(!API_CONFIGURED) return {ok:false, error:'아직 백엔드 주소가 연결되지 않았어요. 설정 가이드를 먼저 완료해주세요.'};
+  try{
+    const res = await fetch(API_URL, {
+      method:'POST',
+      headers:{'Content-Type':'text/plain;charset=utf-8'},
+      body: JSON.stringify(Object.assign({action}, payload))
+    });
+    return await res.json();
+  } catch(err){
+    console.error('API error', err);
+    return {ok:false, error:'서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.'};
+  }
+}
+
+/* ============ Constants ============ */
+const ORDER = ['R','I','A','S','E','C'];
+const CATS = [
+  {code:'R', label:'현실형', desc:'몸으로 만들고 움직이기', hex:'#8A6D3B'},
+  {code:'I', label:'탐구형', desc:'질문하고 파고들기', hex:'#2B5F6B'},
+  {code:'A', label:'예술형', desc:'새롭게 표현하고 창작하기', hex:'#8E4585'},
+  {code:'S', label:'사회형', desc:'돕고 함께하기', hex:'#B0473E'},
+  {code:'E', label:'기업형', desc:'이끌고 설득하기', hex:'#C98A2B'},
+  {code:'C', label:'관습형', desc:'체계적으로 정리하기', hex:'#3D6B4A'}
+];
+const QUESTIONS = [
+  {code:'R', text:'새로운 도구나 기계가 어떻게 작동하는지 직접 만져보며 알아보는 게 좋다.'},
+  {code:'R', text:'손으로 무언가를 조립하거나 고치는 활동을 하면 시간 가는 줄 모른다.'},
+  {code:'R', text:'몸을 움직이는 활동(운동, 실습, 야외 활동)을 할 때 에너지가 난다.'},
+  {code:'R', text:'이론으로 배우기보다 직접 해보면서 익히는 게 더 잘 맞는다.'},
+  {code:'R', text:'완성된 물건보다 그것을 만드는 과정 자체에 흥미를 느낀다.'},
+  {code:'R', text:'캠핑, 목공, 요리처럼 손과 몸을 함께 쓰는 활동을 즐긴다.'},
+  {code:'R', text:'기계나 장비를 다루는 일을 맡으면 자신 있게 해낸다.'},
+  {code:'R', text:'실외에서 몸을 쓰며 하는 활동이 실내에서 앉아 하는 활동보다 좋다.'},
+  {code:'R', text:'물건이 고장 났을 때 원인을 찾아 직접 고쳐보고 싶어진다.'},
+  {code:'R', text:'정교한 손기술이 필요한 활동(만들기, 조립, 수리)에 흥미가 있다.'},
+  {code:'I', text:'궁금한 것이 생기면 끝까지 답을 찾아보고 싶어진다.'},
+  {code:'I', text:'실험이나 관찰을 통해 원리를 확인하는 과정이 흥미롭다.'},
+  {code:'I', text:'복잡한 문제를 논리적으로 하나씩 풀어가는 게 재미있다.'},
+  {code:'I', text:'새로운 지식이나 정보를 스스로 찾아보는 걸 즐긴다.'},
+  {code:'I', text:'왜 그런 결과가 나왔는지 원인을 분석해보는 걸 좋아한다.'},
+  {code:'I', text:'어려운 개념일수록 오히려 더 알아보고 싶은 마음이 든다.'},
+  {code:'I', text:'자료를 비교하고 분석해서 결론을 내리는 과정이 흥미롭다.'},
+  {code:'I', text:'다큐멘터리나 과학 관련 콘텐츠를 즐겨 찾아본다.'},
+  {code:'I', text:'정답이 하나로 정해지지 않은 문제를 깊이 파고드는 게 즐겁다.'},
+  {code:'I', text:'새로운 이론이나 원리를 배우면 다른 상황에도 적용해보고 싶다.'},
+  {code:'A', text:'그림, 음악, 글, 영상 등으로 내 생각을 표현하는 게 즐겁다.'},
+  {code:'A', text:'정해진 방식보다 나만의 방식으로 새롭게 만들어보는 걸 좋아한다.'},
+  {code:'A', text:'아이디어를 자유롭게 떠올리고 시도해보는 게 재미있다.'},
+  {code:'A', text:'남들과 다른 독특한 결과물을 만들었을 때 뿌듯함을 느낀다.'},
+  {code:'A', text:'틀에 얽매이지 않고 자유롭게 상상하는 걸 좋아한다.'},
+  {code:'A', text:'색, 소리, 글자 같은 것들의 조합을 바꿔보며 노는 게 즐겁다.'},
+  {code:'A', text:'내가 만든 작품이나 글을 다른 사람에게 보여주고 싶어진다.'},
+  {code:'A', text:'새로운 스타일이나 트렌드를 시도해보는 데 거리낌이 없다.'},
+  {code:'A', text:'감정이나 분위기를 색다른 방식으로 표현하는 데 관심이 많다.'},
+  {code:'A', text:'창의적인 아이디어를 낼 때 남들이 생각 못한 방향으로 생각하는 편이다.'},
+  {code:'S', text:'친구나 후배가 어려움을 겪을 때 도와주고 싶은 마음이 크다.'},
+  {code:'S', text:'다른 사람의 이야기를 듣고 공감하는 걸 잘한다.'},
+  {code:'S', text:'여럿이 협력해서 무언가를 이뤄낼 때 보람을 느낀다.'},
+  {code:'S', text:'누군가에게 알려주거나 설명해주는 역할이 편하다.'},
+  {code:'S', text:'사람들 사이에서 갈등이 생기면 중재하고 화해시키는 역할을 자주 맡는다.'},
+  {code:'S', text:'봉사활동이나 나눔 활동에 참여할 때 만족감을 느낀다.'},
+  {code:'S', text:'새로운 사람을 만나고 관계를 넓혀가는 게 즐겁다.'},
+  {code:'S', text:'누군가 고민을 털어놓으면 끝까지 들어주고 싶어진다.'},
+  {code:'S', text:'팀 활동에서 분위기를 챙기고 배려하는 역할을 잘한다.'},
+  {code:'S', text:'사람들에게 도움이 되는 일을 할 때 가장 큰 보람을 느낀다.'},
+  {code:'E', text:'모둠 활동에서 계획을 세우고 이끄는 역할을 자주 맡는다.'},
+  {code:'E', text:'내 생각을 다른 사람 앞에서 발표하고 설득하는 게 두렵지 않다.'},
+  {code:'E', text:'새로운 일을 벌이고 추진하는 데 거리낌이 없다.'},
+  {code:'E', text:'목표를 세우고 성과를 만들어내는 과정에 열정을 느낀다.'},
+  {code:'E', text:'경쟁하는 상황에서 오히려 더 힘이 나는 편이다.'},
+  {code:'E', text:'사람들을 설득해서 내 의견 쪽으로 이끄는 걸 잘한다.'},
+  {code:'E', text:'새로운 아이디어를 사업이나 프로젝트로 만들어보고 싶다.'},
+  {code:'E', text:'위험이 있더라도 기회가 보이면 도전해보고 싶어진다.'},
+  {code:'E', text:'여러 사람 앞에 나서서 의견을 이끄는 자리가 편하다.'},
+  {code:'E', text:'목표를 달성했을 때의 성취감을 위해 열심히 움직인다.'},
+  {code:'C', text:'계획표나 목록을 만들어서 순서대로 처리하는 게 편하다.'},
+  {code:'C', text:'자료나 물건을 분류하고 정리정돈하는 걸 잘한다.'},
+  {code:'C', text:'정해진 규칙이나 절차를 지키면서 일하는 게 안정적으로 느껴진다.'},
+  {code:'C', text:'세부적인 부분까지 꼼꼼하게 확인하는 편이다.'},
+  {code:'C', text:'해야 할 일의 순서와 시간을 미리 정해두는 걸 좋아한다.'},
+  {code:'C', text:'정해진 형식과 기준에 맞춰 결과물을 완성하는 게 편하다.'},
+  {code:'C', text:'숫자나 데이터를 정확하게 다루는 일에 자신이 있다.'},
+  {code:'C', text:'갑작스러운 변화보다 예측 가능한 상황을 더 좋아한다.'},
+  {code:'C', text:'맡은 일을 마감 기한 안에 빠뜨리지 않고 마무리하는 편이다.'},
+  {code:'C', text:'자료를 표나 목록으로 깔끔하게 정리하는 걸 좋아한다.'}
+];
+const SUBJECTS = ['국어','수학','영어','사회','역사','도덕','과학','기술·가정','정보','체육','음악','미술'];
+const FIELD_MAP = {
+  RI:{name:'자연과학·공학계열', blurb:'현상을 관찰하고 직접 만들어보며 원리를 확인하는 것을 좋아해요.'},
+  RA:{name:'디자인·메이커계열', blurb:'손으로 무언가를 직접 만들고 다듬는 과정에서 창의성을 발휘해요.'},
+  RS:{name:'보건·실무돌봄계열', blurb:'몸을 움직이며 사람을 직접 돌보거나 돕는 활동에 끌려요.'},
+  RE:{name:'기술창업·현장경영계열', blurb:'현장에서 직접 부딪히며 일을 추진하는 것을 좋아해요.'},
+  RC:{name:'공학·기술실무계열', blurb:'정해진 절차대로 정밀하게 만들고 점검하는 것을 잘해요.'},
+  IA:{name:'융합연구·콘텐츠계열', blurb:'궁금한 것을 파고들면서 그 결과를 새로운 방식으로 표현해요.'},
+  IS:{name:'심리·사회과학계열', blurb:'사람과 사회현상을 깊이 있게 탐구하는 데 흥미가 있어요.'},
+  IE:{name:'데이터·전략기획계열', blurb:'분석한 내용을 바탕으로 방향을 제시하는 것을 좋아해요.'},
+  IC:{name:'자연과학·정밀연구계열', blurb:'체계적으로 자료를 모으고 검증하는 탐구를 좋아해요.'},
+  AS:{name:'문화예술교육계열', blurb:'표현한 것을 다른 사람과 나누고 가르치는 데 보람을 느껴요.'},
+  AE:{name:'미디어·콘텐츠기획계열', blurb:'창작한 것을 기획하고 사람들 앞에 선보이는 것을 즐겨요.'},
+  AC:{name:'디자인·편집계열', blurb:'꼼꼼하게 다듬어 완성도 있는 결과물을 만드는 것을 좋아해요.'},
+  SE:{name:'인문사회·경영계열', blurb:'사람들과 함께 목표를 향해 이끌어가는 것을 좋아해요.'},
+  SC:{name:'교육·행정계열', blurb:'사람을 돕는 일을 체계적으로 계획하고 관리해요.'},
+  EC:{name:'경영·기획계열', blurb:'계획을 세우고 추진해서 성과를 만드는 데 흥미가 있어요.'}
+};
+const JOB_INFO = {
+  R:{ field:'기술·기능, 엔지니어링',
+      representative:['자동차정비원','전기기사','조리사','항공정비사','소방관','운동선수','원예사','토목기술자'],
+      emerging:['드론조종사','스마트팜운영자','로봇정비사','신재생에너지기술자'],
+      related:['항해사','배관공','목수','제빵사','헤어디자이너','경찰관','산림기술자','자동차공학기술자','조경기술자','항공기조종사'],
+      majors:['기계공학과','전기전자공학과','항공정비학과','조리과학과','스포츠과학과','산림자원학과'] },
+  I:{ field:'자연과학, IT·데이터연구',
+      representative:['연구원','의사','약사','데이터분석가','프로그래머','수의사','통계학자','화학자'],
+      emerging:['데이터사이언티스트','인공지능전문가','생명정보학자','우주공학연구원'],
+      related:['물리학자','임상병리사','천문학자','환경연구원','반도체연구원','빅데이터엔지니어','유전공학연구원','기상연구원','해양학자','로봇공학자'],
+      majors:['물리학과','화학과','생명과학과','컴퓨터공학과','통계학과','의예과'] },
+  A:{ field:'문화예술, 디자인·미디어콘텐츠',
+      representative:['디자이너','작가','음악가','배우','사진작가','건축가','영상편집자','큐레이터'],
+      emerging:['콘텐츠크리에이터','UX/UI디자이너','게임원화가','버추얼아티스트'],
+      related:['일러스트레이터','무대미술가','광고기획자','패션디자이너','작곡가','북디자이너','공연기획자','캐릭터디자이너','드라마작가','시각효과전문가'],
+      majors:['시각디자인학과','실용음악과','영상학과','건축학과','문예창작과','애니메이션학과'] },
+  S:{ field:'교육, 사회복지서비스',
+      representative:['사회복지사','교사','간호사','상담전문가','유치원교사','물리치료사','성직자','언어치료사'],
+      emerging:['디지털큐레이터','반려동물훈련상담사','노인전문간호사','원격진로코디네이터'],
+      related:['동물조련사','가사도우미','간병인','간호조무사','독서지도사','레크리에이션지도사','보육교사','임상심리사','작업치료사','노년플래너'],
+      majors:['아동가족학과','간호학과','건강관리학과','기술교육과','교육공학과','교육학과','국어교육과'] },
+  E:{ field:'관리·경영, 사회언론, 영업판매',
+      representative:['경영컨설턴트','마케터','영업관리자','아나운서','정치인','변호사','호텔지배인','광고기획자'],
+      emerging:['브랜드매니저','크라우드펀딩전문가','소셜미디어마케터','스타트업창업가'],
+      related:['기업홍보담당자','무역사무원','여행상품기획자','부동산중개인','파티플래너','영업사원','기자','법무사','투자상담사','이벤트기획자'],
+      majors:['경영학과','무역학과','광고홍보학과','정치외교학과','법학과','관광경영학과'] },
+  C:{ field:'사무·회계, 행정·금융',
+      representative:['회계사','세무사','은행원','공무원','사서','통역사','감정평가사','법무사'],
+      emerging:['데이터라벨러','개인정보보호전문가','온라인쇼핑몰MD','전자문서관리사'],
+      related:['손해사정사','관세사','비서','통계사무원','물류관리사','신용분석가','재고관리사','품질관리원','보험계리사','증권사무원'],
+      majors:['회계학과','세무학과','행정학과','문헌정보학과','경영정보학과','금융보험학과'] },
+};
+function typeIcon(code){
+  const cat = CATS.find(c=>c.code===code);
+  const bg = cat.hex + '22';
+  let inner = '';
+  if(code==='R') inner = `<path d="M13 27 L23 17 M17 13a4 4 0 105.66 5.66L27 14" fill="none" stroke="${cat.hex}" stroke-width="2.4" stroke-linecap="round"/>`;
+  else if(code==='I') inner = `<circle cx="17" cy="17" r="7" fill="none" stroke="${cat.hex}" stroke-width="2.4"/><line x1="22" y1="22" x2="28" y2="28" stroke="${cat.hex}" stroke-width="2.4" stroke-linecap="round"/>`;
+  else if(code==='A') inner = `<path d="M12 22c0-6 5-11 11-11 4 0 7 2 7 5 0 2-2 3-4 3h-2c-1 0-2 1-2 2 0 2 2 2 2 4 0 2-2 3-5 3-4 0-7-3-7-6z" fill="none" stroke="${cat.hex}" stroke-width="2"/><circle cx="16" cy="15" r="1.3" fill="${cat.hex}"/><circle cx="21" cy="13" r="1.3" fill="${cat.hex}"/>`;
+  else if(code==='S') inner = `<circle cx="14" cy="15" r="4" fill="none" stroke="${cat.hex}" stroke-width="2.2"/><circle cx="23" cy="15" r="4" fill="none" stroke="${cat.hex}" stroke-width="2.2"/><path d="M9 27c0-4 3-6 6-6M28 27c0-4-3-6-6-6" fill="none" stroke="${cat.hex}" stroke-width="2.2" stroke-linecap="round"/>`;
+  else if(code==='E') inner = `<path d="M10 25 L16 18 L20 21 L27 12" fill="none" stroke="${cat.hex}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 12h6v6" fill="none" stroke="${cat.hex}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+  else if(code==='C') inner = `<rect x="11" y="10" width="16" height="20" rx="2" fill="none" stroke="${cat.hex}" stroke-width="2"/><line x1="14" y1="16" x2="24" y2="16" stroke="${cat.hex}" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="21" x2="24" y2="21" stroke="${cat.hex}" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="26" x2="20" y2="26" stroke="${cat.hex}" stroke-width="2" stroke-linecap="round"/>`;
+  return `<span class="type-icon" style="background:${bg}"><svg viewBox="0 0 40 40">${inner}</svg></span>`;
+}
+
+/* ============ State ============ */
+let state = {
+  mode:'landing', landingMode:'student', tab:'test', isDemo:false,
+  studentName:'', studentPassword:'',
+  history:[], viewIndex:0,
+  analysis:null, analysisLoading:false, analysisError:null,
+  teacherCode:'', teacherStudents:[], teacherClassFilter:'all', teacherViewing:null, teacherViewIndex:0, teacherLoadingDetail:false,
+};
+let testAnswers = new Array(QUESTIONS.length).fill(0);
+let subjectAnswers = new Array(SUBJECTS.length).fill(0);
+
+/* ============ Utility ============ */
+function pairKey(a,b){ return [a,b].sort((x,y)=>ORDER.indexOf(x)-ORDER.indexOf(y)).join(''); }
+function esc(str){ return (str||'').replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+function fmtDate(iso){ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
+function topTwoCodes(scores){
+  const arr = ORDER.map(c=>[c,scores[c]]).sort((a,b)=>b[1]-a[1]);
+  if(arr[0][1]===0) return null;
+  return [arr[0][0], arr[1][0]];
+}
+function labelOf(code){ const c=CATS.find(x=>x.code===code); return c?`${c.label}(${c.code})`:code; }
+
+/* ============ Render ============ */
+function render(){
+  const root = document.getElementById('root');
+  if(state.mode==='landing'){ root.innerHTML = landingView(); attachLandingHandlers(); return; }
+  if(state.mode==='teacher'){ root.innerHTML = teacherShell(); return; }
+  root.innerHTML = dashboardShell();
+}
+
+/* ============ Landing ============ */
+function landingView(){
+  const mode = state.landingMode;
+  const setupBanner = !API_CONFIGURED ? `<div class="disclosure" style="margin-top:0;margin-bottom:18px;">⚙️ 아직 백엔드 주소가 연결되지 않았어요. 설정 가이드대로 Google Sheets를 연결하기 전까지는 '샘플로 둘러보기'만 이용할 수 있어요.</div>` : '';
+  return `
+    <div class="hero">
+      <svg class="compass-mark" viewBox="0 0 100 100"><polygon points="50,4 91,27 91,73 50,96 9,73 9,27" fill="none" stroke="#F7F8F3" stroke-width="1.5"/></svg>
+      <div class="school-badge">서산명지중학교</div>
+      <div class="hero-eyebrow">CAREER COMPASS · 누적 성향 검사</div>
+      <h1>진로 나침반</h1>
+      <p>몇 분짜리 성향 검사를 학기마다 한 번씩 해보면, 지금 나의 상태 · 한 학기 전 · 1년 전이 나란히 쌓여요. 고등학교에 갈 때쯤엔 내가 어느 쪽으로 꾸준히 기울어 있었는지 스스로 확인할 수 있을 거예요.</p>
+    </div>
+    <div class="card">
+      <div class="tabs">
+        <button class="tab-btn ${mode!=='teacher'?'active':''}" onclick="setLandingMode('student')">학생으로 시작</button>
+        <button class="tab-btn ${mode==='teacher'?'active':''}" onclick="setLandingMode('teacher')">교사로 로그인</button>
+      </div>
+      ${setupBanner}
+      ${mode==='teacher' ? teacherLoginForm() : studentLoginForm()}
+    </div>
+    <div class="footer-note">진로 나침반은 결정을 내려주는 도구가 아니라, 생각할 거리를 정리해주는 기록장이에요.</div>
+  `;
+}
+function setLandingMode(m){ state.landingMode=m; render(); }
+
+function studentLoginForm(){
+  return `
+    <div class="section-title">학생으로 시작하기</div>
+    <div class="section-desc">이름과 비밀번호만 입력해주세요. 처음이면 자동으로 등록되고, 다음부터는 같은 이름·비밀번호로 로그인하면 학년이 올라가고 반이 바뀌어도 이전 기록을 그대로 이어서 볼 수 있어요. (학년·반은 검사할 때마다 따로 입력해요.)</div>
+    <div class="row2">
+      <div class="field"><label for="in-name">이름</label><input type="text" id="in-name" placeholder="예: 김하늘"></div>
+      <div class="field"><label for="in-pw">비밀번호</label><input type="password" id="in-pw" placeholder="4자리 이상"></div>
+    </div>
+    <button class="btn" id="start-btn" onclick="startStudentSession()" style="width:100%;">시작하기</button>
+    <div class="disclosure">🔒 비밀번호는 암호화(해시)된 형태로 저장돼서 시트를 열어봐도 원문은 보이지 않아요. 다만 이건 가벼운 접근 구분용이라 계좌·이메일 같은 데 쓰는 비밀번호와는 다르게, 이 검사만을 위한 간단한 비밀번호를 새로 정해서 쓰는 걸 권해요. 학교 전체에서 이름만으로 구분하다 보니 동명이인이 있으면 겹칠 수 있어요 — 그럴 땐 "김하늘2"처럼 구분해서 등록해주세요.<br><br>📋 이 검사는 전문 적성검사가 아니라 스스로 돌아보기 위한 자기이해 도구예요. 정확한 진단이 필요하면 커리어넷 등 표준화된 진로 심리검사를 함께 활용해보세요.</div>
+    <button class="demo-link" onclick="startDemo()">먼저 샘플 데이터로 둘러보기 →</button>
+  `;
+}
+function teacherLoginForm(){
+  return `
+    <div class="section-title">교사로 로그인하기</div>
+    <div class="section-desc">담당 선생님이 설정한 교사 코드를 입력하면 전체 학급·학생의 결과를 볼 수 있어요.</div>
+    <div class="field"><label for="in-teacher-code">교사 코드</label><input type="password" id="in-teacher-code" placeholder="교사 코드 입력"></div>
+    <button class="btn" id="teacher-start-btn" onclick="startTeacherSession()" style="width:100%;">로그인</button>
+  `;
+}
+function attachLandingHandlers(){
+  document.getElementById('in-name')?.addEventListener('keydown', e=>{ if(e.key==='Enter') startStudentSession(); });
+  document.getElementById('in-pw')?.addEventListener('keydown', e=>{ if(e.key==='Enter') startStudentSession(); });
+  document.getElementById('in-teacher-code')?.addEventListener('keydown', e=>{ if(e.key==='Enter') startTeacherSession(); });
+}
+
+function demoHistory(){
+  const now = Date.now();
+  return [
+    {date:new Date(now-300*864e5).toISOString(), grade:1, classSection:'2반', label:'1학년 1학기', scores:{R:20,I:24,A:22,S:32,E:22,C:27},
+      subjects:{'국어':3,'수학':3,'영어':3,'사회':4,'역사':3,'도덕':3,'과학':4,'기술·가정':3,'정보':3,'체육':4,'음악':3,'미술':3}},
+    {date:new Date(now-150*864e5).toISOString(), grade:1, classSection:'2반', label:'1학년 2학기', scores:{R:22,I:31,A:20,S:29,E:23,C:25},
+      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':3,'도덕':3,'과학':5,'기술·가정':3,'정보':4,'체육':3,'음악':2,'미술':3}},
+    {date:new Date(now-10*864e5).toISOString(), grade:2, classSection:'5반', label:'2학년 1학기', scores:{R:24,I:38,A:18,S:27,E:24,C:22},
+      subjects:{'국어':3,'수학':4,'영어':3,'사회':3,'역사':2,'도덕':2,'과학':5,'기술·가정':4,'정보':5,'체육':3,'음악':2,'미술':2}},
+  ];
+}
+function startDemo(){
+  state.isDemo=true; state.studentName='샘플 학생'; state.studentPassword='';
+  state.history = demoHistory(); state.analysis=null; state.viewIndex=state.history.length-1;
+  state.mode='student'; state.tab='progress';
+  render();
+}
+
+async function startStudentSession(){
+  const btn = document.getElementById('start-btn');
+  const name = (document.getElementById('in-name').value||'').trim();
+  const pw = document.getElementById('in-pw').value;
+  if(!name || !pw){ alert('이름과 비밀번호를 모두 입력해주세요.'); return; }
+  btn.disabled=true; btn.textContent='확인하는 중…';
+  const authRes = await apiCall('auth', {name, password:pw});
+  if(!authRes.ok){ alert(authRes.error || '로그인에 실패했어요.'); btn.disabled=false; btn.textContent='시작하기'; return; }
+  state.isDemo=false; state.studentName=name; state.studentPassword=pw;
+  const [histRes, anaRes] = await Promise.all([
+    apiCall('getHistory', {name, password:pw}),
+    apiCall('getAnalysis', {name, password:pw}),
+  ]);
+  state.history = histRes.ok ? histRes.history : [];
+  state.analysis = anaRes.ok ? anaRes.analysis : null;
+  state.viewIndex = Math.max(0, state.history.length-1);
+  state.mode='student'; state.tab = state.history.length ? 'progress' : 'test';
+  render();
+}
+async function startTeacherSession(){
+  const btn = document.getElementById('teacher-start-btn');
+  const code = (document.getElementById('in-teacher-code').value||'').trim();
+  if(!code){ alert('교사 코드를 입력해주세요.'); return; }
+  btn.disabled=true; btn.textContent='확인하는 중…';
+  const res = await apiCall('teacherOverview', {code});
+  if(!res.ok){ alert(res.error || '코드가 올바르지 않아요.'); btn.disabled=false; btn.textContent='로그인'; return; }
+  state.teacherCode = code;
+  state.teacherStudents = res.students || [];
+  state.teacherClassFilter='all'; state.teacherViewing=null;
+  state.mode='teacher';
+  render();
+}
+function switchStudent(){
+  state = Object.assign({}, state, {mode:'landing', landingMode:'student', tab:'test', history:[], analysis:null, studentPassword:'', isDemo:false});
+  testAnswers = new Array(QUESTIONS.length).fill(0);
+  subjectAnswers = new Array(SUBJECTS.length).fill(0);
+  render();
+}
+function teacherLogout(){
+  state = Object.assign({}, state, {mode:'landing', landingMode:'teacher', teacherCode:'', teacherStudents:[], teacherViewing:null});
+  render();
+}
+
+/* ============ Student dashboard shell ============ */
+function currentClassLabel(){
+  if(state.history.length===0) return '학급 정보 없음';
+  const last = state.history[state.history.length-1];
+  return `${last.grade}학년 ${last.classSection||''}`.trim();
+}
+function dashboardShell(){
+  const initials = (state.studentName||'?').slice(0,1);
+  return `
+    <div class="topbar no-print">
+      <div class="who"><div class="avatar">${esc(initials)}</div><div><div class="who-name">${esc(state.studentName)}</div><div class="who-id">${esc(currentClassLabel())}${state.isDemo?' · 샘플 모드(저장 안 됨)':''}</div></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="switchStudent()">로그아웃</button>
+    </div>
+    <div class="tabs no-print">
+      <button class="tab-btn ${state.tab==='test'?'active':''}" onclick="setTab('test')">검사하기</button>
+      <button class="tab-btn ${state.tab==='progress'?'active':''}" onclick="setTab('progress')">나의 변화</button>
+      <button class="tab-btn ${state.tab==='analysis'?'active':''}" onclick="setTab('analysis')">계열 분석</button>
+    </div>
+    <div id="tab-content">${tabContent()}</div>
+    ${printReportHTML()}
+    <div class="footer-note no-print">진로 나침반 · 지금은 탐색하는 시기예요. 검사는 언제든 다시 할 수 있고, 결과는 바뀌어도 괜찮아요.</div>
+  `;
+}
+function setTab(tab){ state.tab=tab; render(); }
+function tabContent(){
+  if(state.tab==='test') return testView();
+  if(state.tab==='progress') return progressView();
+  if(state.tab==='analysis') return analysisView();
+  return '';
+}
+
+/* ============ Test tab ============ */
+function testView(){
+  const last = state.history[state.history.length-1];
+  const note = last ? `<div class="progress-note">마지막 검사: ${fmtDate(last.date)}${last.label?' · '+esc(last.label):''} · 지금까지 ${state.history.length}회 검사했어요. 한 학기에 한 번 정도가 적당해요.</div>` : '';
+
+  const blocks = CATS.map(cat=>{
+    const qs = QUESTIONS.map((q,i)=>({q,i})).filter(x=>x.q.code===cat.code);
+    const rows = qs.map(({q,i})=>{
+      const btns = [1,2,3,4,5].map(v=>`<button type="button" class="likert-btn ${testAnswers[i]===v?'selected':''}" onclick="setAnswer(${i},${v})">${v}</button>`).join('');
+      return `<div class="likert-row"><div class="likert-q">${esc(q.text)}</div><div class="likert-scale">${btns}</div></div>`;
+    }).join('');
+    return `
+      <div class="cat-block">
+        <div class="cat-head"><span class="dot" style="background:${cat.hex}"></span><b>${cat.label}</b><span>· ${cat.desc}</span></div>
+        ${rows}
+        <div class="likert-caption"><span>전혀 그렇지 않다</span><span>매우 그렇다</span></div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="card">
+      <div class="section-title">진로 성향 검사</div>
+      <div class="section-desc">성향 문항 60개 + 좋아하는 과목 12개, 총 72문항이에요. 1(전혀 그렇지 않다)~5(매우 그렇다)로 답해주세요. 정답은 없어요, 지금 나에게 더 가까운 쪽을 고르면 돼요. 15~20분 정도 걸려요.</div>
+      ${note}
+      <div class="test-meta">
+        <div class="field"><label for="test-grade">학년</label><select id="test-grade"><option value="1">1학년</option><option value="2">2학년</option><option value="3">3학년</option></select></div>
+        <div class="field"><label for="test-section">반</label><input type="text" id="test-section" placeholder="예: 3반"></div>
+        <div class="field"><label for="test-label">이번 검사 시점 (선택)</label><input type="text" id="test-label" placeholder="예: 1학기 중간"></div>
+      </div>
+      ${blocks}
+      ${subjectBlock()}
+      <div class="submit-row">
+        <button class="btn" id="submit-test-btn" style="width:100%;" onclick="submitTest()">검사 제출하고 저장하기</button>
+      </div>
+    </div>
+  `;
+}
+function subjectBlock(){
+  const rows = SUBJECTS.map((name,i)=>{
+    const btns = [1,2,3,4,5].map(v=>`<button type="button" class="likert-btn ${subjectAnswers[i]===v?'selected':''}" onclick="setSubjectAnswer(${i},${v})">${v}</button>`).join('');
+    return `<div class="subj-row"><div class="likert-q">${esc(name)}</div><div class="likert-scale">${btns}</div></div>`;
+  }).join('');
+  return `
+    <div class="cat-block">
+      <div class="cat-head"><span class="dot" style="background:var(--ink)"></span><b>좋아하는 과목</b><span>· 요즘 배우는 과목에 대한 흥미도</span></div>
+      ${rows}
+      <div class="likert-caption"><span>흥미 없음</span><span>매우 흥미로움</span></div>
+    </div>
+  `;
+}
+function setSubjectAnswer(i,v){
+  subjectAnswers[i]=v;
+  const rows = document.querySelectorAll('.subj-row');
+  const row = rows[i];
+  if(!row){ render(); return; }
+  row.querySelectorAll('.likert-btn').forEach((b,idx)=>{ b.classList.toggle('selected', idx+1===v); });
+}
+function setAnswer(i,v){
+  testAnswers[i]=v;
+  const rows = document.querySelectorAll('.likert-row');
+  const row = rows[i];
+  if(!row){ render(); return; }
+  row.querySelectorAll('.likert-btn').forEach((b,idx)=>{ b.classList.toggle('selected', idx+1===v); });
+}
+async function submitTest(){
+  const unanswered = testAnswers.filter(v=>v===0).length;
+  const subjUnanswered = subjectAnswers.filter(v=>v===0).length;
+  if(unanswered>0){ alert(`아직 답하지 않은 성향 문항이 ${unanswered}개 있어요.`); return; }
+  if(subjUnanswered>0){ alert(`아직 흥미도를 매기지 않은 과목이 ${subjUnanswered}개 있어요.`); return; }
+  const grade = Number(document.getElementById('test-grade').value);
+  const classSection = document.getElementById('test-section').value.trim();
+  const label = document.getElementById('test-label').value.trim();
+  const scores = {R:0,I:0,A:0,S:0,E:0,C:0};
+  QUESTIONS.forEach((q,i)=>{ scores[q.code]+=testAnswers[i]; });
+  const subjects = {};
+  SUBJECTS.forEach((name,i)=>{ subjects[name]=subjectAnswers[i]; });
+
+  const btn = document.getElementById('submit-test-btn');
+  if(btn){ btn.disabled=true; btn.textContent='저장하는 중…'; }
+
+  if(!state.isDemo){
+    const res = await apiCall('saveTest', {name:state.studentName, password:state.studentPassword, grade, classSection, label, scores, subjects});
+    if(!res.ok){
+      alert(res.error || '저장에 실패했어요. 다시 시도해주세요.');
+      if(btn){ btn.disabled=false; btn.textContent='검사 제출하고 저장하기'; }
+      return;
+    }
+  }
+  const snapshot = {date:new Date().toISOString(), grade, classSection, label, scores, subjects};
+  state.history.push(snapshot);
+  state.viewIndex = state.history.length-1;
+  testAnswers = new Array(QUESTIONS.length).fill(0);
+  subjectAnswers = new Array(SUBJECTS.length).fill(0);
+  state.tab = 'progress';
+  render();
+}
+
+/* ============ Shared profile block (radar + trend + subjects), reused by student & teacher views ============ */
+function renderProfileBlock(history, viewIndex, setterFnName){
+  const chips = history.map((h,idx)=>`
+    <button class="${idx===viewIndex?'active':''}" onclick="${setterFnName}(${idx})">${esc(h.label || (idx+1)+'차')} · ${fmtDate(h.date)}</button>
+  `).join('');
+  const snap = history[viewIndex];
+  const scores = snap.scores;
+  const max = 50;
+  const top = topTwoCodes(scores);
+  const isLatest = viewIndex === history.length-1;
+
+  let delta = '';
+  if(isLatest && history.length>=2){
+    const prev = history[history.length-2];
+    const diffs = ORDER.map(c=>({c, d:scores[c]-prev.scores[c]})).filter(x=>Math.abs(x.d)>=2).sort((a,b)=>Math.abs(b.d)-Math.abs(a.d));
+    delta = `<div class="delta-box"><strong>지난 검사(${esc(prev.label||'이전')}) 대비 변화</strong><br>`;
+    delta += diffs.length ? diffs.map(x=>`<span class="delta-tag">${labelOf(x.c)} ${x.d>0?'↑':'↓'} ${x.d>0?'+':''}${x.d}</span>`).join(' ') : '큰 변화 없이 비슷한 흐름을 유지하고 있어요.';
+    delta += `</div>`;
+  }
+
+  const trend = history.length>=2 ? `
+    <div style="margin-top:26px;">
+      <div class="section-title" style="font-size:16px;">변화 추이</div>
+      <div class="trend-scroll">${trendChartSVG(history)}</div>
+      <div class="trend-legend">${CATS.map(c=>`<span><span class="dot" style="background:${c.hex}"></span>${c.label}</span>`).join('')}</div>
+    </div>
+  ` : `<div class="progress-note" style="margin-top:20px;">검사를 한 번 더 하면 변화 추이 그래프가 나타나요.</div>`;
+
+  const subjSection = snap.subjects ? `
+    <div style="margin-top:26px;">
+      <div class="section-title" style="font-size:16px;">좋아하는 과목 (${isLatest?'현재':esc(snap.label||'그때')} 기준)</div>
+      <div class="subject-bars">
+        ${Object.entries(snap.subjects).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`
+          <div class="subject-bar-row">
+            <span class="subject-bar-label">${esc(name)}</span>
+            <span class="subject-bar-track"><span class="subject-bar-fill" style="width:${v/5*100}%"></span></span>
+            <span class="subject-bar-score">${v}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
+  return `
+    <div class="snap-chips no-print">${chips}</div>
+    <div class="section-title" style="margin-top:4px;">${isLatest?'현재 나의 성향':esc(snap.label||'그때의 성향')}</div>
+    <div class="section-desc">${snap.grade}학년 ${esc(snap.classSection||'')} · ${fmtDate(snap.date)} 검사 결과예요.</div>
+    <div class="radar-wrap">
+      ${radarSVG(scores, max)}
+      <div class="legend">${CATS.map(c=>`
+        <div class="legend-row">
+          <span class="dot" style="background:${c.hex}"></span>
+          <span class="legend-label">${c.label}</span>
+          <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,scores[c.code]/max*100)}%; background:${c.hex}"></span></span>
+          <span class="legend-score">${scores[c.code]}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+    ${top ? `<div class="highlight-box">가장 뚜렷하게 나타나는 성향은 <strong>${labelOf(top[0])}</strong>과 <strong>${labelOf(top[1])}</strong>이에요.</div>` : ''}
+    ${delta}
+    ${subjSection}
+    ${trend}
+    <div class="no-print" style="margin-top:22px;">
+      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
+      <div class="progress-note" style="margin-top:8px;">인쇄 대화상자가 열리면 '대상'을 PDF로 저장으로 바꿔서 저장하면 돼요.</div>
+    </div>
+  `;
+}
+
+/* ============ Progress tab (student) ============ */
+function progressView(){
+  if(state.history.length===0){
+    return `<div class="card"><div class="empty">아직 검사 기록이 없어요.<br>'검사하기' 탭에서 첫 검사를 해보세요.</div></div>`;
+  }
+  return `<div class="card">${renderProfileBlock(state.history, state.viewIndex, 'setViewIndex')}</div>`;
+}
+function setViewIndex(i){ state.viewIndex=i; render(); }
+
+function radarSVG(scores, max){
+  const cx=140, cy=140, R=105;
+  const angleFor = idx => -Math.PI/2 + idx*(Math.PI*2/6);
+  const pt = (idx, r) => [cx + r*Math.cos(angleFor(idx)), cy + r*Math.sin(angleFor(idx))];
+  const rings = [0.25,0.5,0.75,1].map(f=>{
+    const pts = ORDER.map((_,idx)=>pt(idx, R*f).join(',')).join(' ');
+    return `<polygon points="${pts}" fill="none" style="stroke:var(--line)" stroke-width="1"/>`;
+  }).join('');
+  const axes = ORDER.map((c,idx)=>{ const [x,y]=pt(idx,R); return `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" style="stroke:var(--line)" stroke-width="1"/>`; }).join('');
+  const dataPts = ORDER.map((c,idx)=>{ const r=Math.max(4,(scores[c]/max)*R); return pt(idx,r); });
+  const dataPoly = dataPts.map(p=>p.join(',')).join(' ');
+  const dots = ORDER.map((c,idx)=>{ const [x,y]=dataPts[idx]; const cat=CATS.find(x2=>x2.code===c); return `<circle cx="${x}" cy="${y}" r="4.5" fill="${cat.hex}"/>`; }).join('');
+  const labels = ORDER.map((c,idx)=>{ const [x,y]=pt(idx,R+22); return `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" style="fill:var(--ink)">${c}</text>`; }).join('');
+  return `<svg class="radar-svg" width="280" height="280" viewBox="0 0 280 280">${rings}${axes}<polygon points="${dataPoly}" style="fill:var(--accent);stroke:var(--accent)" fill-opacity="0.16" stroke-width="2"/>${dots}${labels}</svg>`;
+}
+
+function trendChartSVG(history){
+  const W = Math.max(340, history.length*100);
+  const H = 220, padL=32, padR=14, padT=14, padB=34;
+  const plotW = W-padL-padR, plotH = H-padT-padB;
+  const xFor = idx => padL + (history.length===1 ? plotW/2 : idx*(plotW/(history.length-1)));
+  const yFor = v => padT + plotH - ((v-10)/40)*plotH;
+  const grid = [10,20,30,40,50].map(v=>{
+    const y=yFor(v);
+    return `<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" style="stroke:var(--line)" stroke-width="1"/><text x="${padL-6}" y="${y+3}" font-size="9.5" text-anchor="end" font-family="IBM Plex Mono, monospace" style="fill:var(--ink-soft)">${v}</text>`;
+  }).join('');
+  const lines = CATS.map(cat=>{
+    const pts = history.map((h,idx)=>`${xFor(idx)},${yFor(h.scores[cat.code])}`).join(' ');
+    return `<polyline points="${pts}" fill="none" style="stroke:${cat.hex}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  }).join('');
+  const xlabels = history.map((h,idx)=>{
+    const x = xFor(idx);
+    const short = h.label ? h.label.slice(0,8) : fmtDate(h.date).slice(5);
+    return `<text x="${x}" y="${H-10}" font-size="9.5" text-anchor="middle" font-family="IBM Plex Mono, monospace" style="fill:var(--ink-soft)">${esc(short)}</text>`;
+  }).join('');
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="max-width:none;">${grid}${lines}${xlabels}</svg>`;
+}
+
+/* ============ Analysis tab (student) ============ */
+function analysisView(){
+  if(state.history.length===0){
+    return `<div class="card"><div class="section-title">계열 분석</div><div class="empty">먼저 '검사하기' 탭에서 검사를 완료해야 분석할 수 있어요.</div></div>`;
+  }
+  const latest = state.history[state.history.length-1];
+  const top = topTwoCodes(latest.scores);
+  const suggestion = top ? FIELD_MAP[pairKey(top[0], top[1])] : null;
+
+  const typeRow = `
+    <div class="type-row">
+      ${CATS.map(c=>{
+        const rank = top ? (c.code===top[0] ? 1 : (c.code===top[1] ? 2 : 0)) : 0;
+        return `
+        <div class="type-card ${rank===1?'rank1':rank===2?'rank2':''}">
+          ${rank ? `<span class="rank-ribbon">${rank}순위</span>` : ''}
+          ${typeIcon(c.code)}
+          <div class="code-line">${c.code}</div>
+          <div class="label-line">${c.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  let jobSection = '';
+  if(top){
+    const cols = top.map((code,idx)=>{
+      const cat = CATS.find(c=>c.code===code);
+      const info = JOB_INFO[code];
+      const rankClass = idx===0?'':'rank2';
+      const relId = 'rel-'+code;
+      return `
+        <div class="job-col">
+          <div class="job-col-head ${rankClass}"><span class="rank-num">${idx+1}</span>${typeIcon(code)}<div><h3>${cat.label} <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);">${code}</span></h3><div class="field-tag">직업군 · ${esc(info.field)}</div></div></div>
+          <div class="group-label">대표직업</div>
+          <div>${info.representative.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+          <div class="group-label">신생직업</div>
+          <div>${info.emerging.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+          <div id="${relId}" class="hidden">
+            <div class="group-label">관련직업</div>
+            <div>${info.related.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+            <div class="group-label">대학 계열 및 학과</div>
+            <div>${info.majors.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+          </div>
+          <button class="more-toggle" onclick="toggleMore('${relId}', this)">관련 직업·학과 더보기 ▾</button>
+        </div>
+      `;
+    }).join('');
+    jobSection = `
+      <div class="section-title" style="font-size:17px;margin-top:26px;">상위 유형별 직업·학과 정보</div>
+      <div class="section-desc">상위 2개 흥미 유형에 해당하는 대표직업과 신생직업이에요. '더보기'를 누르면 관련직업과 대학 계열·학과도 볼 수 있어요.</div>
+      <div class="job-cols">${cols}</div>
+      <div class="adiga-note">대입 관련 학과 정보를 더 자세히 살펴보고 싶다면 대입정보포털 <a href="https://www.adiga.kr" target="_blank" rel="noopener">adiga.kr</a>에서 찾아볼 수 있어요.</div>
+    `;
+  }
+
+  let aiBody = '';
+  if(state.analysisError) aiBody += `<div class="error-banner"><span>${esc(state.analysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runAnalysis()">다시 시도</button></div>`;
+  if(state.analysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> AI가 비교 분석을 준비하고 있어요…</div>`; }
+  else if(state.analysis){ aiBody += renderAnalysisResult(state.analysis); aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runAnalysis()">다시 분석하기</button></div>`; }
+  else { aiBody += `<button class="btn" onclick="runAnalysis()">AI에게 자세한 비교 분석 받기</button>`; }
+
+  return `
+    <div class="card">
+      <div class="section-title">계열 분석</div>
+      <div class="section-desc">가장 최근 검사(${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}) 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
+      <div class="suggestion-card">
+        <span class="suggestion-tag">${top ? top[0]+top[1] : '—'}</span>
+        <div><strong>${suggestion ? suggestion.name : '분석할 데이터가 더 필요해요'}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${suggestion?suggestion.blurb:''}</div></div>
+      </div>
+      ${typeRow}
+      ${jobSection}
+      <div class="section-title" style="font-size:17px;margin-top:28px;">AI 심화 비교 분석</div>
+      <div class="section-desc">검사 이력 전체(변화 흐름 포함)를 바탕으로 AI가 계열을 비교 설명해줘요.</div>
+      ${aiBody}
+    </div>
+  `;
+}
+function toggleMore(id, btn){
+  const el = document.getElementById(id);
+  el.classList.toggle('hidden');
+  btn.textContent = el.classList.contains('hidden') ? '관련 직업·학과 더보기 ▾' : '접기 ▴';
+}
+function renderAnalysisResult(a){
+  const candidates = (a.candidates||[]).map(c=>`
+    <div class="candidate-card">
+      <div class="kicker">CANDIDATE</div>
+      <h3>${esc(c.field||'')}</h3>
+      <p>${esc(c.match_reason||'')}</p>
+      <p><strong>주로 하는 활동:</strong> ${esc(c.typical_activities||'')}</p>
+      <div class="pill-row">${(c.careers||[]).map(x=>`<span>${esc(x)}</span>`).join('')}</div>
+      <p style="margin-top:8px;"><strong>관련 과목 영역:</strong> ${(c.related_subjects||[]).map(esc).join(', ')}</p>
+    </div>
+  `).join('');
+  return `<div style="margin-top:6px;"><p style="font-size:13.5px; line-height:1.6;">${esc(a.summary||'')}</p><div class="candidates-grid">${candidates}</div><div class="encourage-box">${esc(a.encouragement||'')}</div></div>`;
+}
+async function runAnalysis(){
+  state.analysisLoading=true; state.analysisError=null; render();
+  try{
+    const hist = state.history.map((h,idx)=>`${idx+1}차(${h.label||('학년 '+h.grade)}, ${fmtDate(h.date)}): 현실형${h.scores.R} 탐구형${h.scores.I} 예술형${h.scores.A} 사회형${h.scores.S} 기업형${h.scores.E} 관습형${h.scores.C}`).join('\n');
+    const latestSnap = state.history[state.history.length-1];
+    const subjLine = latestSnap.subjects ? Object.entries(latestSnap.subjects).sort((a,b)=>b[1]-a[1]).map(([n,v])=>`${n}${v}`).join(', ') : '기록 없음';
+    const prompt = `다음은 한 중학생이 학기마다 반복해서 응시한 진로 성향 검사(RIASEC 방식, 각 항목 10~50점)의 누적 기록과, 가장 최근 검사에서 함께 응답한 과목별 흥미도(5점 만점)입니다.
+
+${hist}
+
+가장 최근 과목 흥미도(높은 순): ${subjLine}
+
+가장 최근 성향 결과와 좋아하는 과목을 함께 고려해서, 이 학생에게 어울릴 수 있는 고등학교 진로 계열을 2~3개 골라 서로 비교해서 설명해주세요. 특히 좋아하는 과목이 어떤 계열과 자연스럽게 이어지는지도 한 문장 정도 짚어주세요. 기록이 2회 이상이면 시간에 따른 변화 흐름도 한 문장 정도 언급해주세요. 중학생이 읽기 쉬운 존댓말로 작성하고, 이건 확정이 아니라 지금 시점의 탐색 결과라는 점을 강조해주세요.
+
+반드시 아래 JSON 형식으로만 응답하세요. 다른 설명, 코드블록 표시(백틱) 없이 순수 JSON 하나만 출력하세요:
+{"summary":"전체 성향·과목 흥미와 변화 흐름 요약 1~2문장","candidates":[{"field":"계열 이름","match_reason":"왜 어울리는지 1~2문장","typical_activities":"이 계열에서 주로 하는 활동 1문장","careers":["직업1","직업2","직업3"],"related_subjects":["관련 과목 영역1","관련 과목 영역2"]}],"encouragement":"탐색 단계임을 강조하는 격려 1~2문장"}`;
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ model:'claude-sonnet-4-6', max_tokens:1000, messages:[{role:'user', content: prompt}] })
+    });
+    const data = await res.json();
+    const textBlocks = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    const clean = textBlocks.replace(/```json|```/g,'').trim();
+    const parsed = JSON.parse(clean);
+    state.analysis = parsed;
+    if(!state.isDemo){ await apiCall('saveAnalysis', {name:state.studentName, password:state.studentPassword, analysis:parsed}); }
+  } catch(err){
+    console.error(err);
+    state.analysisError = '분석 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.';
+  } finally {
+    state.analysisLoading=false; render();
+  }
+}
+
+/* ============ Teacher dashboard ============ */
+function teacherShell(){
+  return `
+    <div class="topbar no-print">
+      <div class="who"><div class="avatar">T</div><div><div class="who-name">교사 대시보드</div><div class="who-id">전체 학급 · 학생 ${state.teacherStudents.length}명</div></div></div>
+      <button class="btn btn-ghost btn-sm" onclick="teacherLogout()">로그아웃</button>
+    </div>
+    <div id="tab-content">${state.teacherViewing ? teacherDetailView() : teacherListView()}</div>
+    ${state.teacherViewing ? teacherPrintReportHTML() : ''}
+  `;
+}
+function teacherListView(){
+  const classes = Array.from(new Set(state.teacherStudents.map(s=>s.currentClass).filter(Boolean))).sort();
+  const filter = state.teacherClassFilter || 'all';
+  const chips = ['all', ...classes].map(c=>`<button class="${filter===c?'active':''}" onclick="setTeacherClassFilter('${esc(c)}')">${c==='all'?'전체':esc(c)}</button>`).join('');
+  const rows = state.teacherStudents.filter(s=> filter==='all' || s.currentClass===filter);
+  const trs = rows.map(s=>{
+    const top = s.scores ? topTwoCodes(s.scores) : null;
+    return `<tr>
+      <td>${esc(s.currentClass||'—')}</td><td>${esc(s.name)}</td>
+      <td>${top?`<span class="code-badge">${top[0]+top[1]}</span>`:'—'}</td>
+      <td>${s.count}회</td><td style="color:var(--ink-soft);">${s.last?fmtDate(s.last):'—'}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(s.name)}')">상세보기</button></td>
+    </tr>`;
+  }).join('');
+  return `
+    <div class="card">
+      <div class="section-title">학급 현황</div>
+      <div class="section-desc">전체 학생의 검사 현황이에요. 학급은 각 학생의 가장 최근 검사 시점 기준이라, 학년이 올라가거나 반이 바뀌어도 자동으로 최신 상태로 보여요. '상세보기'를 누르면 그 학생의 전체 결과를 볼 수 있어요.</div>
+      <div class="snap-chips">${chips}</div>
+      ${rows.length===0 ? `<div class="empty">아직 등록된 학생이 없어요.</div>` : `
+      <table><thead><tr><th>학급</th><th>이름</th><th>주요 성향</th><th>검사 횟수</th><th>최근 검사일</th><th></th></tr></thead><tbody>${trs}</tbody></table>`}
+    </div>
+  `;
+}
+function setTeacherClassFilter(c){ state.teacherClassFilter=c; render(); }
+async function openTeacherStudent(name){
+  state.teacherLoadingDetail=true; state.teacherViewing={name, history:[]}; render();
+  const res = await apiCall('teacherStudentDetail', {code:state.teacherCode, name});
+  state.teacherLoadingDetail=false;
+  if(!res.ok){ alert(res.error || '학생 정보를 불러오지 못했어요.'); state.teacherViewing=null; render(); return; }
+  state.teacherViewing = {name, history: res.history || [], analysis: res.analysis || null};
+  state.teacherViewIndex = Math.max(0, (res.history||[]).length-1);
+  render();
+}
+function closeTeacherStudent(){ state.teacherViewing=null; render(); }
+function setTeacherViewIndex(i){ state.teacherViewIndex=i; render(); }
+function teacherDetailView(){
+  const {name, history} = state.teacherViewing;
+  if(state.teacherLoadingDetail){
+    return `<div class="card"><div class="loading-row"><span class="spinner"></span> 불러오는 중…</div></div>`;
+  }
+  return `
+    <button class="btn btn-ghost btn-sm no-print" onclick="closeTeacherStudent()">← 목록으로</button>
+    <div class="card" style="margin-top:14px;">
+      <div class="section-title">${esc(name)}</div>
+      ${history.length===0 ? `<div class="empty">아직 검사 기록이 없어요.</div>` : renderProfileBlock(history, state.teacherViewIndex, 'setTeacherViewIndex')}
+    </div>
+  `;
+}
+
+/* ============ Combined print report (profile + career analysis) ============ */
+function printReportHTML(){
+  if(state.history.length===0) return '';
+  return buildPrintReport(state.studentName, state.history, state.analysis);
+}
+function teacherPrintReportHTML(){
+  if(!state.teacherViewing || !state.teacherViewing.history || state.teacherViewing.history.length===0) return '';
+  return buildPrintReport(state.teacherViewing.name, state.teacherViewing.history, state.teacherViewing.analysis || null);
+}
+function buildPrintReport(studentName, history, analysis){
+  const latest = history[history.length-1];
+  const top = topTwoCodes(latest.scores);
+  const suggestion = top ? FIELD_MAP[pairKey(top[0], top[1])] : null;
+  const max = 50;
+
+  const legend = CATS.map(c=>`
+    <div class="legend-row">
+      <span class="dot" style="background:${c.hex}"></span>
+      <span class="legend-label">${c.label}</span>
+      <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,latest.scores[c.code]/max*100)}%; background:${c.hex}"></span></span>
+      <span class="legend-score">${latest.scores[c.code]}</span>
+    </div>`).join('');
+
+  const subjRows = latest.subjects ? Object.entries(latest.subjects).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`
+    <div class="subject-bar-row">
+      <span class="subject-bar-label">${esc(name)}</span>
+      <span class="subject-bar-track"><span class="subject-bar-fill" style="width:${v/5*100}%"></span></span>
+      <span class="subject-bar-score">${v}</span>
+    </div>`).join('') : '';
+
+  const trend = history.length>=2 ? `
+    <hr class="print-divider">
+    <div class="section-title" style="font-size:16px;">변화 추이</div>
+    <div class="trend-scroll">${trendChartSVG(history)}</div>
+    <div class="trend-legend">${CATS.map(c=>`<span><span class="dot" style="background:${c.hex}"></span>${c.label}</span>`).join('')}</div>
+  ` : '';
+
+  const jobCols = top ? top.map((code,idx)=>{
+    const cat = CATS.find(c=>c.code===code);
+    const info = JOB_INFO[code];
+    return `
+      <div class="job-col">
+        <div class="job-col-head ${idx===0?'':'rank2'}"><span class="rank-num">${idx+1}</span>${typeIcon(code)}<div><h3>${cat.label} <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);">${code}</span></h3><div class="field-tag">직업군 · ${esc(info.field)}</div></div></div>
+        <div class="group-label">대표직업</div>
+        <div>${info.representative.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+        <div class="group-label">신생직업</div>
+        <div>${info.emerging.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+        <div class="group-label">관련직업</div>
+        <div>${info.related.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+        <div class="group-label">대학 계열 및 학과</div>
+        <div>${info.majors.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
+      </div>
+    `;
+  }).join('') : '';
+
+  const typeRow = `
+    <div class="type-row">
+      ${CATS.map(c=>{
+        const rank = top ? (c.code===top[0] ? 1 : (c.code===top[1] ? 2 : 0)) : 0;
+        return `
+        <div class="type-card ${rank===1?'rank1':rank===2?'rank2':''}">
+          ${rank ? `<span class="rank-ribbon">${rank}순위</span>` : ''}
+          ${typeIcon(c.code)}
+          <div class="code-line">${c.code}</div>
+          <div class="label-line">${c.label}</div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  const aiSection = analysis ? renderAnalysisResult(analysis)
+    : `<p style="font-size:13px;color:var(--ink-soft);">아직 AI 비교 분석을 받지 않았어요. '계열 분석' 탭에서 먼저 분석을 받으면 다음 PDF에는 이 내용도 포함돼요.</p>`;
+
+  return `
+    <div class="print-only" id="print-report">
+      <div class="print-header">
+        <div class="print-school">서산명지중학교</div>
+        <div class="print-title">진로 나침반 결과 보고서</div>
+        <div class="print-meta">${esc(studentName)} · ${latest.grade}학년 ${esc(latest.classSection||'')} · ${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}</div>
+      </div>
+
+      <div class="section-title" style="font-size:16px;">나의 성향</div>
+      <div class="radar-wrap">
+        ${radarSVG(latest.scores, max)}
+        <div class="legend">${legend}</div>
+      </div>
+      ${top ? `<div class="highlight-box">가장 뚜렷하게 나타나는 성향은 <strong>${labelOf(top[0])}</strong>과 <strong>${labelOf(top[1])}</strong>이에요.</div>` : ''}
+
+      ${latest.subjects ? `<hr class="print-divider"><div class="section-title" style="font-size:16px;">좋아하는 과목</div><div class="subject-bars">${subjRows}</div>` : ''}
+
+      ${trend}
+
+      <hr class="print-divider">
+      <div class="section-title" style="font-size:16px;">계열 분석</div>
+      <div class="suggestion-card">
+        <span class="suggestion-tag">${top ? top[0]+top[1] : '—'}</span>
+        <div><strong>${suggestion ? suggestion.name : ''}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${suggestion?suggestion.blurb:''}</div></div>
+      </div>
+      ${typeRow}
+      <div class="job-cols">${jobCols}</div>
+
+      <hr class="print-divider">
+      <div class="section-title" style="font-size:16px;">AI 심화 비교 분석</div>
+      ${aiSection}
+    </div>
+  `;
+}
+
+/* ============ Init ============ */
+render();
+</script>
+</body>
+</html>
