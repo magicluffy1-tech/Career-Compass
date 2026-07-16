@@ -158,6 +158,15 @@
   th{text-align:left; font-size:11.5px; text-transform:uppercase; letter-spacing:0.04em; color:var(--ink-soft); padding:8px 10px; border-bottom:1.5px solid var(--line-strong);}
   td{padding:10px 10px; border-bottom:1px solid var(--line);}
   .code-badge{font-family:var(--font-mono); font-weight:700; background:var(--ink); color:var(--paper-raised); padding:2px 7px; border-radius:6px; font-size:11px;}
+  .count-tag{font-size:11.5px; color:var(--ink-soft);}
+  .type-cols-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px;}
+  .type-col{border:1px solid var(--line); border-radius:12px; padding:14px; background:#fff;}
+  .type-col-head{display:flex; align-items:flex-start; gap:8px; margin-bottom:10px;}
+  .type-col-head h3{font-size:14px;}
+  .type-col-list{display:flex; flex-direction:column; gap:6px;}
+  .student-chip{display:flex; justify-content:space-between; align-items:center; width:100%; text-align:left; background:var(--paper); border:none; border-radius:8px; padding:7px 10px; font-size:12.5px; color:var(--ink); cursor:pointer;}
+  .student-chip:hover{background:var(--accent-soft);}
+  .student-chip-sub{color:var(--ink-soft); font-family:var(--font-mono); font-size:10px; margin-left:8px; flex-shrink:0;}
   .footer-note{font-size:11.5px; color:var(--ink-soft); text-align:center; margin-top:36px; line-height:1.7;}
 
   @media print{
@@ -183,7 +192,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxay4C3jDJJQlUrr3gOHz95R62HSbWC-WG8LH4ZzpfzU9-ebQAc7fDbq7IcJ6PX1wOT/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -342,7 +351,7 @@ let state = {
   studentName:'', studentPassword:'',
   history:[], viewIndex:0,
   analysis:null, analysisLoading:false, analysisError:null,
-  teacherCode:'', teacherStudents:[], teacherClassFilter:'all', teacherViewing:null, teacherViewIndex:0, teacherLoadingDetail:false,
+  teacherCode:'', teacherStudents:[], teacherClassFilter:'all', teacherView:'list', teacherViewing:null, teacherViewIndex:0, teacherLoadingDetail:false,
 };
 let testAnswers = new Array(QUESTIONS.length).fill(0);
 let subjectAnswers = new Array(SUBJECTS.length).fill(0);
@@ -475,7 +484,7 @@ function switchStudent(){
   render();
 }
 function teacherLogout(){
-  state = Object.assign({}, state, {mode:'landing', landingMode:'teacher', teacherCode:'', teacherStudents:[], teacherViewing:null});
+  state = Object.assign({}, state, {mode:'landing', landingMode:'teacher', teacherCode:'', teacherStudents:[], teacherViewing:null, teacherView:'list', teacherClassFilter:'all'});
   render();
 }
 
@@ -881,26 +890,82 @@ function teacherListView(){
   const filter = state.teacherClassFilter || 'all';
   const chips = ['all', ...classes].map(c=>`<button class="${filter===c?'active':''}" onclick="setTeacherClassFilter('${esc(c)}')">${c==='all'?'전체':esc(c)}</button>`).join('');
   const rows = state.teacherStudents.filter(s=> filter==='all' || s.currentClass===filter);
+  const view = state.teacherView || 'list';
+  const desc = view==='byType'
+    ? '가장 최근 검사의 1순위 성향을 기준으로 학생들을 묶어서 보여줘요. 아직 검사하지 않은 학생은 따로 모아뒀어요.'
+    : '전체 학생의 검사 현황이에요. 학급은 각 학생의 가장 최근 검사 시점 기준이라, 학년이 올라가거나 반이 바뀌어도 자동으로 최신 상태로 보여요. 이름을 눌러 상세 결과를 볼 수 있어요.';
+  return `
+    <div class="card">
+      <div class="section-title">학급 현황</div>
+      <div class="section-desc">${desc}</div>
+      <div class="snap-chips">${chips}</div>
+      <div class="tabs" style="margin:14px 0 18px;">
+        <button class="tab-btn ${view==='list'?'active':''}" onclick="setTeacherView('list')">전체 목록</button>
+        <button class="tab-btn ${view==='byType'?'active':''}" onclick="setTeacherView('byType')">유형별 보기</button>
+      </div>
+      ${view==='byType' ? teacherByTypeBody(rows) : teacherListTableBody(rows)}
+    </div>
+  `;
+}
+function setTeacherView(v){ state.teacherView=v; render(); }
+function setTeacherClassFilter(c){ state.teacherClassFilter=c; render(); }
+function teacherListTableBody(rows){
+  if(rows.length===0) return `<div class="empty">아직 등록된 학생이 없어요.</div>`;
   const trs = rows.map(s=>{
     const top = s.scores ? topTwoCodes(s.scores) : null;
     return `<tr>
       <td>${esc(s.currentClass||'—')}</td><td>${esc(s.name)}</td>
       <td>${top?`<span class="code-badge">${top[0]+top[1]}</span>`:'—'}</td>
       <td>${s.count}회</td><td style="color:var(--ink-soft);">${s.last?fmtDate(s.last):'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(s.name)}')">상세보기</button></td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(s.name)}')">상세보기</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(s.name)}')">비밀번호 초기화</button>
+      </td>
     </tr>`;
   }).join('');
+  return `<table><thead><tr><th>학급</th><th>이름</th><th>주요 성향</th><th>검사 횟수</th><th>최근 검사일</th><th></th></tr></thead><tbody>${trs}</tbody></table>`;
+}
+function teacherByTypeBody(students){
+  if(students.length===0) return `<div class="empty">아직 등록된 학생이 없어요.</div>`;
+  const groups = {}; CATS.forEach(c=>{ groups[c.code]=[]; });
+  const untested = [];
+  students.forEach(s=>{
+    const top = s.scores ? topTwoCodes(s.scores) : null;
+    if(top) groups[top[0]].push(s); else untested.push(s);
+  });
+  const total = students.length;
+  const summaryBars = CATS.map(c=>{
+    const n = groups[c.code].length;
+    const pct = total ? Math.round(n/total*100) : 0;
+    return `
+      <div class="legend-row">
+        <span class="dot" style="background:${c.hex}"></span>
+        <span class="legend-label">${c.label}</span>
+        <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${pct}%; background:${c.hex}"></span></span>
+        <span class="legend-score">${n}명</span>
+      </div>`;
+  }).join('');
+  const columns = CATS.map(c=>{
+    const list = groups[c.code];
+    return `
+      <div class="type-col">
+        <div class="type-col-head">${typeIcon(c.code)}<div><h3>${c.label} <span class="count-tag">${c.code}</span></h3><div class="count-tag">${list.length}명</div></div></div>
+        <div class="type-col-list">
+          ${list.length ? list.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')">${esc(s.name)}<span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`).join('') : `<div class="progress-note">아직 없음</div>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+  const untestedBlock = untested.length ? `
+    <div class="section-title" style="font-size:15px;margin-top:24px;">아직 검사 전 (${untested.length}명)</div>
+    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')">${esc(s.name)}</button>`).join('')}</div>
+  ` : '';
   return `
-    <div class="card">
-      <div class="section-title">학급 현황</div>
-      <div class="section-desc">전체 학생의 검사 현황이에요. 학급은 각 학생의 가장 최근 검사 시점 기준이라, 학년이 올라가거나 반이 바뀌어도 자동으로 최신 상태로 보여요. '상세보기'를 누르면 그 학생의 전체 결과를 볼 수 있어요.</div>
-      <div class="snap-chips">${chips}</div>
-      ${rows.length===0 ? `<div class="empty">아직 등록된 학생이 없어요.</div>` : `
-      <table><thead><tr><th>학급</th><th>이름</th><th>주요 성향</th><th>검사 횟수</th><th>최근 검사일</th><th></th></tr></thead><tbody>${trs}</tbody></table>`}
-    </div>
+    <div class="legend" style="margin-bottom:22px; max-width:420px;">${summaryBars}</div>
+    <div class="type-cols-grid">${columns}</div>
+    ${untestedBlock}
   `;
 }
-function setTeacherClassFilter(c){ state.teacherClassFilter=c; render(); }
 async function openTeacherStudent(name){
   state.teacherLoadingDetail=true; state.teacherViewing={name, history:[]}; render();
   const res = await apiCall('teacherStudentDetail', {code:state.teacherCode, name});
@@ -920,10 +985,20 @@ function teacherDetailView(){
   return `
     <button class="btn btn-ghost btn-sm no-print" onclick="closeTeacherStudent()">← 목록으로</button>
     <div class="card" style="margin-top:14px;">
-      <div class="section-title">${esc(name)}</div>
+      <div class="topbar no-print" style="margin-bottom:0;">
+        <div class="section-title" style="margin-bottom:0;">${esc(name)}</div>
+        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(name)}')">비밀번호 초기화</button>
+      </div>
       ${history.length===0 ? `<div class="empty">아직 검사 기록이 없어요.</div>` : renderProfileBlock(history, state.teacherViewIndex, 'setTeacherViewIndex')}
     </div>
   `;
+}
+async function resetStudentPassword(name){
+  const sure = confirm(`${name} 학생의 비밀번호를 초기화할까요?\n\n초기화하면 그 학생은 다음 로그인 때 이름과 새 비밀번호를 입력해서 다시 등록해야 해요. 그동안 쌓인 검사 기록은 그대로 남아있어요.`);
+  if(!sure) return;
+  const res = await apiCall('teacherResetPassword', {code: state.teacherCode, name});
+  if(!res.ok){ alert(res.error || '초기화에 실패했어요.'); return; }
+  alert(`${name} 학생의 비밀번호가 초기화됐어요. 학생에게 다시 로그인해서 새 비밀번호를 만들라고 안내해주세요.`);
 }
 
 /* ============ Combined print report (profile + career analysis) ============ */
