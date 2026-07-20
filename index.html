@@ -191,7 +191,7 @@
   .print-divider{ border:none; border-top:1px solid var(--line-strong); margin:26px 0; }
   @media print{
     .print-only{ display:block !important; }
-    #tab-content{ display:none !important; }
+    body:has(.print-only) #tab-content{ display:none !important; }
   }
 </style>
 </head>
@@ -367,6 +367,10 @@ let subjectAnswers = new Array(SUBJECTS.length).fill(0);
 /* ============ Utility ============ */
 function pairKey(a,b){ return [a,b].sort((x,y)=>ORDER.indexOf(x)-ORDER.indexOf(y)).join(''); }
 function esc(str){ return String(str==null?'':str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+// For values embedded inside onclick="fn('...')" — browsers HTML-decode the attribute
+// before compiling it as JS, so plain esc() alone doesn't stop a literal ' from breaking
+// the string. Use esc(jsAttr(x)) at those call sites (JS-escape first, then HTML-escape).
+function jsAttr(str){ return String(str==null?'':str).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 function fmtDate(iso){ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
 function topTwoCodes(scores){
   const arr = ORDER.map(c=>[c,scores[c]]).sort((a,b)=>b[1]-a[1]);
@@ -853,7 +857,7 @@ function careerAnalysisBody(history, analysis, interactive){
     ]));
     const desiredBefore = latest.desiredJobBefore || '';
     const chosenAfter = latest.chosenJobAfter || '';
-    const chips = choicePool.map(j=>`<button type="button" class="chip-pick ${chosenAfter===j?'selected':''}" onclick="chooseJob('${esc(j).replace(/'/g,"\\'")}')">${esc(j)}</button>`).join('');
+    const chips = choicePool.map(j=>`<button type="button" class="chip-pick ${chosenAfter===j?'selected':''}" onclick="chooseJob('${esc(jsAttr(j))}')">${esc(j)}</button>`).join('');
     const pickerBlock = interactive ? `
       <div class="pill-row" style="margin:10px 0 12px;">${chips}</div>
       <div class="row2">
@@ -924,10 +928,15 @@ function renderAnalysisResult(a){
 async function chooseJob(job){
   if(state.isDemo){ alert('샘플 모드에서는 저장할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.'); return; }
   const latest = state.history[state.history.length-1];
+  const prevValue = latest.chosenJobAfter;
   latest.chosenJobAfter = job;
   render();
   const res = await apiCall('updateChosenJob', {name:state.studentName, password:state.studentPassword, chosenJob: job});
-  if(!res.ok){ alert(res.error || '저장에 실패했어요. 다시 시도해주세요.'); }
+  if(!res.ok){
+    latest.chosenJobAfter = prevValue;
+    render();
+    alert(res.error || '저장에 실패했어요. 다시 시도해주세요.');
+  }
 }
 async function chooseCustomJob(){
   const input = document.getElementById('custom-job-input');
@@ -967,7 +976,7 @@ function teacherShell(){
 function teacherListView(){
   const classes = Array.from(new Set(state.teacherStudents.map(s=>s.currentClass).filter(Boolean))).sort();
   const filter = state.teacherClassFilter || 'all';
-  const chips = ['all', ...classes].map(c=>`<button class="${filter===c?'active':''}" onclick="setTeacherClassFilter('${esc(c)}')">${c==='all'?'전체':esc(c)}</button>`).join('');
+  const chips = ['all', ...classes].map(c=>`<button class="${filter===c?'active':''}" onclick="setTeacherClassFilter('${esc(jsAttr(c))}')">${c==='all'?'전체':esc(c)}</button>`).join('');
   const rows = state.teacherStudents.filter(s=> filter==='all' || s.currentClass===filter);
   const view = state.teacherView || 'list';
   const desc = view==='byType'
@@ -1020,8 +1029,8 @@ function teacherListTableBody(rows){
       <td>${top?`<span class="code-badge">${top[0]+top[1]}</span>`:'—'}</td>
       <td>${s.count}회</td><td style="color:var(--ink-soft);">${s.last?fmtDate(s.last):'—'}</td>
       <td style="white-space:nowrap;">
-        <button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(s.name)}')">상세보기</button>
-        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(s.name)}')">비밀번호 초기화</button>
+        <button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">상세보기</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(jsAttr(s.name))}')">비밀번호 초기화</button>
       </td>
     </tr>`;
   }).join('');
@@ -1046,7 +1055,7 @@ function teacherByTypeBody(students){
             const curTop = s.scores ? topTwoCodes(s.scores) : null;
             const changed = prevTop && curTop && prevTop[0] !== curTop[0];
             const badge = changed ? `<span class="change-badge">${prevTop[0]}→${curTop[0]}</span>` : '';
-            return `<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')"><span>${esc(s.name)}${badge}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`;
+            return `<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')"><span>${esc(s.name)}${badge}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`;
           }).join('') : `<div class="progress-note">아직 없음</div>`}
         </div>
       </div>
@@ -1054,7 +1063,7 @@ function teacherByTypeBody(students){
   }).join('');
   const untestedBlock = untested.length ? `
     <div class="section-title" style="font-size:15px;margin-top:24px;">아직 검사 전 (${untested.length}명)</div>
-    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(s.name)}')">${esc(s.name)}</button>`).join('')}</div>
+    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">${esc(s.name)}</button>`).join('')}</div>
   ` : '';
   return `
     <div class="type-cols-grid">${columns}</div>
@@ -1093,7 +1102,7 @@ function teacherDetailView(){
     <div class="card" style="margin-top:14px;">
       <div class="topbar no-print" style="margin-bottom:0;">
         <div class="section-title" style="margin-bottom:0;">${esc(name)}</div>
-        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(name)}')">비밀번호 초기화</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(jsAttr(name))}')">비밀번호 초기화</button>
       </div>
       ${history.length===0 ? `<div class="empty">아직 검사 기록이 없어요.</div>` : renderProfileBlock(history, state.teacherViewIndex, 'setTeacherViewIndex')}
     </div>
