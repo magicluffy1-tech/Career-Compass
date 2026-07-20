@@ -200,7 +200,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbz0tQ7psP5Ek5l4aOpgybRQvmAJGtGZP5Xn6G4UsbosVqwSKSQuH07kCdgRliYPlYYM/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -539,7 +539,7 @@ function testView(){
     const qs = QUESTIONS.map((q,i)=>({q,i})).filter(x=>x.q.code===cat.code);
     const rows = qs.map(({q,i})=>{
       const btns = [1,2,3,4,5].map(v=>`<button type="button" class="likert-btn ${testAnswers[i]===v?'selected':''}" onclick="setAnswer(${i},${v})">${v}</button>`).join('');
-      return `<div class="likert-row"><div class="likert-q">${esc(q.text)}</div><div class="likert-scale">${btns}</div></div>`;
+      return `<div class="likert-row" data-qindex="${i}"><div class="likert-q">${esc(q.text)}</div><div class="likert-scale">${btns}</div></div>`;
     }).join('');
     return `
       <div class="cat-block">
@@ -576,7 +576,7 @@ function testView(){
 function subjectBlock(){
   const rows = SUBJECTS.map((name,i)=>{
     const btns = [1,2,3,4,5].map(v=>`<button type="button" class="likert-btn ${subjectAnswers[i]===v?'selected':''}" onclick="setSubjectAnswer(${i},${v})">${v}</button>`).join('');
-    return `<div class="subj-row"><div class="likert-q">${esc(name)}</div><div class="likert-scale">${btns}</div></div>`;
+    return `<div class="subj-row" data-sindex="${i}"><div class="likert-q">${esc(name)}</div><div class="likert-scale">${btns}</div></div>`;
   }).join('');
   return `
     <div class="cat-block">
@@ -588,15 +588,13 @@ function subjectBlock(){
 }
 function setSubjectAnswer(i,v){
   subjectAnswers[i]=v;
-  const rows = document.querySelectorAll('.subj-row');
-  const row = rows[i];
+  const row = document.querySelector('.subj-row[data-sindex="'+i+'"]');
   if(!row){ render(); return; }
   row.querySelectorAll('.likert-btn').forEach((b,idx)=>{ b.classList.toggle('selected', idx+1===v); });
 }
 function setAnswer(i,v){
   testAnswers[i]=v;
-  const rows = document.querySelectorAll('.likert-row');
-  const row = rows[i];
+  const row = document.querySelector('.likert-row[data-qindex="'+i+'"]');
   if(!row){ render(); return; }
   row.querySelectorAll('.likert-btn').forEach((b,idx)=>{ b.classList.toggle('selected', idx+1===v); });
 }
