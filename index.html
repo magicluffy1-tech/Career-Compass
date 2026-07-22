@@ -200,7 +200,7 @@
 <script>
 /* ============ Backend config ============ */
 /* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbywgUJC-Jw0o9PO0jyQO8jXXwwAGJhuGM8xJlunYubaTs85zWVwvQROZZjebfQKtI4f/exec';
+const API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
 const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
 
 async function apiCall(action, payload){
@@ -1089,27 +1089,63 @@ function teacherByTypeBody(students){
   `;
 }
 function teacherSubjectsBody(students){
+  if(students.length===0) return `<div class="empty">아직 등록된 학생이 없어요.</div>`;
   const withSubjects = students.filter(s=>s.subjects && Object.keys(s.subjects).length>0);
-  if(withSubjects.length===0) return `<div class="empty">아직 과목 흥미도 데이터가 있는 학생이 없어요.</div>`;
-  const sums = {}; SUBJECTS.forEach(name=>{ sums[name]=0; });
-  withSubjects.forEach(s=>{ SUBJECTS.forEach(name=>{ sums[name] += Number(s.subjects[name]||0); }); });
-  const avg = {}; SUBJECTS.forEach(name=>{ avg[name] = sums[name] / withSubjects.length; });
+  const untested = students.filter(s=>!s.subjects || Object.keys(s.subjects).length===0);
 
-  const legend = Object.entries(avg).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`
-    <div class="legend-row">
-      <span class="dot" style="background:var(--accent)"></span>
-      <span class="legend-label legend-label-wide">${esc(name)}</span>
-      <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,v/5*100)}%; background:var(--accent)"></span></span>
-      <span class="legend-score">${v.toFixed(1)}</span>
-    </div>
-  `).join('');
+  const groups = {}; SUBJECTS.forEach(name=>{ groups[name]=[]; });
+  withSubjects.forEach(s=>{
+    const top3 = Object.entries(s.subjects).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
+    top3.forEach(name=>{ if(groups[name]) groups[name].push(s); });
+  });
+  const orderedSubjects = [...SUBJECTS].sort((a,b)=>groups[b].length-groups[a].length);
+
+  const columns = orderedSubjects.map(name=>{
+    const list = groups[name];
+    return `
+      <div class="type-col">
+        <div class="type-col-head"><div><h3>${esc(name)}</h3><div class="count-tag">${list.length}명</div></div></div>
+        <div class="type-col-list">
+          ${list.length ? list.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')"><span>${esc(s.name)}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`).join('') : `<div class="progress-note">아직 없음</div>`}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const untestedBlock = untested.length ? `
+    <div class="section-title" style="font-size:15px;margin-top:24px;">아직 검사 전 (${untested.length}명)</div>
+    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">${esc(s.name)}</button>`).join('')}</div>
+  ` : '';
+
+  let avgSection = '';
+  if(withSubjects.length>0){
+    const sums = {}; SUBJECTS.forEach(name=>{ sums[name]=0; });
+    withSubjects.forEach(s=>{ SUBJECTS.forEach(name=>{ sums[name] += Number(s.subjects[name]||0); }); });
+    const avg = {}; SUBJECTS.forEach(name=>{ avg[name] = sums[name] / withSubjects.length; });
+    const legend = Object.entries(avg).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`
+      <div class="legend-row">
+        <span class="dot" style="background:var(--accent)"></span>
+        <span class="legend-label legend-label-wide">${esc(name)}</span>
+        <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,v/5*100)}%; background:var(--accent)"></span></span>
+        <span class="legend-score">${v.toFixed(1)}</span>
+      </div>
+    `).join('');
+    avgSection = `
+      <hr class="print-divider">
+      <div class="section-title" style="font-size:16px;">학급 평균</div>
+      <div class="progress-note" style="margin-bottom:14px;">과목 흥미도를 기록한 학생 ${withSubjects.length}명(전체 ${students.length}명 중) 기준 평균이에요. 5점 만점이에요.</div>
+      <div class="radar-wrap">
+        ${subjectRadarSVG(avg)}
+        <div class="legend">${legend}</div>
+      </div>
+    `;
+  }
 
   return `
-    <div class="progress-note" style="margin-bottom:14px;">과목 흥미도를 기록한 학생 ${withSubjects.length}명(전체 ${students.length}명 중) 기준 평균이에요. 5점 만점이에요.</div>
-    <div class="radar-wrap">
-      ${subjectRadarSVG(avg)}
-      <div class="legend">${legend}</div>
-    </div>
+    <div class="progress-note" style="margin-bottom:14px;">각 학생이 가장 흥미 있다고 답한 과목 상위 3개를 기준으로 묶었어요. 한 학생이 여러 과목 칸에 함께 들어갈 수 있어요.</div>
+    <div class="type-cols-grid">${columns}</div>
+    ${untestedBlock}
+    ${avgSection}
   `;
 }
 async function openTeacherStudent(name){
