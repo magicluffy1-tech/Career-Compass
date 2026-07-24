@@ -6,6 +6,8 @@
 <title>진로 나침반</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<!-- Supabase JS SDK CDN 추가 -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --ink:#1F2A24; --ink-soft:#4B564E;
@@ -198,23 +200,97 @@
 <body>
 <div id="root"></div>
 <script>
-/* ============ Backend config ============ */
-/* 배포 후 나오는 Apps Script 웹 앱 URL을 아래에 붙여넣으세요. (설정 가이드 참고) */
-const API_URL = 'https://script.google.com/macros/s/AKfycbywgUJC-Jw0o9PO0jyQO8jXXwwAGJhuGM8xJlunYubaTs85zWVwvQROZZjebfQKtI4f/exec';
-const API_CONFIGURED = API_URL.indexOf('PASTE_') === -1;
+/* ============ Supabase Config & Driver ============ */
+const SUPABASE_URL = 'https://scdaurigscugtzqwnnrt.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE'; // 복사해두신 anon public 키를 넣어주세요.
+const TEACHER_CODE_SECRET = '1234'; // 교사 로그인 비밀번호
+
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const API_CONFIGURED = SUPABASE_ANON_KEY.indexOf('YOUR_') === -1;
 
 async function apiCall(action, payload){
-  if(!API_CONFIGURED) return {ok:false, error:'아직 백엔드 주소가 연결되지 않았어요. 설정 가이드를 먼저 완료해주세요.'};
+  if(!API_CONFIGURED) return {ok:false, error:'아직 Supabase 키가 설정되지 않았어요.'};
   try{
-    const res = await fetch(API_URL, {
-      method:'POST',
-      headers:{'Content-Type':'text/plain;charset=utf-8'},
-      body: JSON.stringify(Object.assign({action}, payload))
-    });
-    return await res.json();
-  } catch(err){
-    console.error('API error', err);
-    return {ok:false, error:'서버에 연결하지 못했어요. 잠시 후 다시 시도해주세요.'};
+    if(action === 'auth') {
+      const { data } = await supabaseClient.from('students').select('*').eq('Name', payload.name);
+      if(data && data.length > 0) {
+        if(data[0].PasswordHash !== payload.password) return {ok:false, error:'비밀번호가 맞지 않아요.'};
+      } else {
+        await supabaseClient.from('students').insert([{ Name: payload.name, PasswordHash: payload.password, CreatedAt: new Date().toLocaleString('ko-KR') }]);
+      }
+      return {ok:true};
+    }
+
+    if(action === 'getHistory') {
+      const { data } = await supabaseClient.from('history').select('*').eq('Name', payload.name);
+      const history = (data || []).map(row => ({
+        date: row.Timestamp, grade: Number(row.Grade), classSection: row.ClassSection, label: row.Label,
+        scores: typeof row.ScoresJSON === 'string' ? JSON.parse(row.ScoresJSON) : row.ScoresJSON,
+        subjects: typeof row.SubjectsJSON === 'string' ? JSON.parse(row.SubjectsJSON) : row.SubjectsJSON,
+        desiredJobBefore: row.H1 || '', chosenJobAfter: row.H2 || ''
+      }));
+      return {ok:true, history};
+    }
+
+    if(action === 'getAnalysis') {
+      const { data } = await supabaseClient.from('analysis').select('*').eq('Name', payload.name).maybeSingle();
+      const analysis = data && data.AnalysisJSON ? (typeof data.AnalysisJSON === 'string' ? JSON.parse(data.AnalysisJSON) : data.AnalysisJSON) : null;
+      return {ok:true, analysis};
+    }
+
+    if(action === 'saveTest') {
+      const { error } = await supabaseClient.from('history').insert([{
+        Name: payload.name, Timestamp: new Date().toLocaleString('ko-KR'), Grade: String(payload.grade), ClassSection: payload.classSection,
+        Label: payload.label, ScoresJSON: JSON.stringify(payload.scores), SubjectsJSON: JSON.stringify(payload.subjects), H1: payload.desiredJobBefore, H2: ''
+      }]);
+      if(error) return {ok:false, error:error.message};
+      return {ok:true};
+    }
+
+    if(action === 'updateChosenJob') {
+      const { data } = await supabaseClient.from('history').select('id').eq('Name', payload.name);
+      if(data && data.length > 0) {
+        const lastId = data[data.length - 1].id;
+        await supabaseClient.from('history').update({ H2: payload.chosenJob }).eq('id', lastId);
+      }
+      return {ok:true};
+    }
+
+    if(action === 'teacherOverview') {
+      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'교사 코드가 올바르지 않아요.'};
+      const { data: stList } = await supabaseClient.from('students').select('*');
+      const { data: hList } = await supabaseClient.from('history').select('*');
+
+      const students = (stList || []).map(st => {
+        const myHist = (hList || []).filter(h => h.Name === st.Name);
+        const last = myHist.length > 0 ? myHist[myHist.length - 1] : null;
+        return {
+          name: st.Name, count: myHist.length, last: last ? last.Timestamp : null, grade: last ? Number(last.Grade) : 1,
+          currentClass: last ? `${last.Grade}학년 ${last.ClassSection}` : '1학년 미검사',
+          scores: last ? (typeof last.ScoresJSON === 'string' ? JSON.parse(last.ScoresJSON) : last.ScoresJSON) : null,
+          subjects: last ? (typeof last.SubjectsJSON === 'string' ? JSON.parse(last.SubjectsJSON) : last.SubjectsJSON) : null
+        };
+      });
+      return {ok:true, students};
+    }
+
+    if(action === 'teacherStudentDetail') {
+      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'권한이 없습니다.'};
+      const histRes = await apiCall('getHistory', {name: payload.name});
+      const anaRes = await apiCall('getAnalysis', {name: payload.name});
+      return {ok:true, history: histRes.history, analysis: anaRes.analysis};
+    }
+
+    if(action === 'teacherResetPassword') {
+      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'권한이 없습니다.'};
+      await supabaseClient.from('students').delete().eq('Name', payload.name);
+      return {ok:true};
+    }
+
+    return {ok:false, error:'Unknown action'};
+  }catch(err){
+    console.error('Supabase API Error:', err);
+    return {ok:false, error:'데이터베이스 처리 중 오류가 발생했습니다.'};
   }
 }
 
@@ -229,7 +305,7 @@ const CATS = [
   {code:'C', label:'관습형', desc:'체계적으로 정리하기', hex:'#3D6B4A'}
 ];
 const QUESTIONS = [
-  {code:'R', text:'새로운 도구나 기계가 어떻게 작동하는지 직접 만져보며 알아보는 게 좋다.'},
+  {code:'R', text:'새로운 도구가 기계가 어떻게 작동하는지 직접 만져보며 알아보는 게 좋다.'},
   {code:'R', text:'손으로 무언가를 조립하거나 고치는 활동을 하면 시간 가는 줄 모른다.'},
   {code:'R', text:'몸을 움직이는 활동(운동, 실습, 야외 활동)을 할 때 에너지가 난다.'},
   {code:'R', text:'이론으로 배우기보다 직접 해보면서 익히는 게 더 잘 맞는다.'},
@@ -367,13 +443,11 @@ let subjectAnswers = new Array(SUBJECTS.length).fill(0);
 /* ============ Utility ============ */
 function pairKey(a,b){ return [a,b].sort((x,y)=>ORDER.indexOf(x)-ORDER.indexOf(y)).join(''); }
 function esc(str){ return String(str==null?'':str).replace(/[&<>"']/g, s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
-// For values embedded inside onclick="fn('...')" — browsers HTML-decode the attribute
-// before compiling it as JS, so plain esc() alone doesn't stop a literal ' from breaking
-// the string. Use esc(jsAttr(x)) at those call sites (JS-escape first, then HTML-escape).
 function jsAttr(str){ return String(str==null?'':str).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
-function fmtDate(iso){ const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
+function fmtDate(iso){ if(!iso) return '—'; const d=new Date(iso); return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`; }
 function topTwoCodes(scores){
-  const arr = ORDER.map(c=>[c,scores[c]]).sort((a,b)=>b[1]-a[1]);
+  if(!scores) return null;
+  const arr = ORDER.map(c=>[c,scores[c]||0]).sort((a,b)=>b[1]-a[1]);
   if(arr[0][1]===0) return null;
   return [arr[0][0], arr[1][0]];
 }
@@ -390,7 +464,7 @@ function render(){
 /* ============ Landing ============ */
 function landingView(){
   const mode = state.landingMode;
-  const setupBanner = !API_CONFIGURED ? `<div class="disclosure" style="margin-top:0;margin-bottom:18px;">⚙️ 아직 백엔드 주소가 연결되지 않았어요. 설정 가이드대로 Google Sheets를 연결하기 전까지는 '샘플로 둘러보기'만 이용할 수 있어요.</div>` : '';
+  const setupBanner = !API_CONFIGURED ? `<div class="disclosure" style="margin-top:0;margin-bottom:18px;">⚙️ 아직 Supabase API Key가 설정되지 않았어요. 스크립트 상단의 SUPABASE_ANON_KEY를 입력해주세요.</div>` : '';
   return `
     <div class="hero">
       <svg class="compass-mark" viewBox="0 0 100 100"><polygon points="50,4 91,27 91,73 50,96 9,73 9,27" fill="none" stroke="#F7F8F3" stroke-width="1.5"/></svg>
@@ -415,20 +489,20 @@ function setLandingMode(m){ state.landingMode=m; render(); }
 function studentLoginForm(){
   return `
     <div class="section-title">학생으로 시작하기</div>
-    <div class="section-desc">이름과 비밀번호만 입력해주세요. 처음이면 자동으로 등록되고, 다음부터는 같은 이름·비밀번호로 로그인하면 학년이 올라가고 반이 바뀌어도 이전 기록을 그대로 이어서 볼 수 있어요. (학년·반은 검사할 때마다 따로 입력해요.)</div>
+    <div class="section-desc">이름과 비밀번호만 입력해주세요. 처음이면 자동으로 등록되고, 다음부터는 같은 이름·비밀번호로 로그인하면 학년이 올라가고 반이 바뀌어도 이전 기록을 그대로 이어서 볼 수 있어요.</div>
     <div class="row2">
       <div class="field"><label for="in-name">이름</label><input type="text" id="in-name" placeholder="예: 김하늘"></div>
       <div class="field"><label for="in-pw">비밀번호</label><input type="password" id="in-pw" placeholder="4자리 이상"></div>
     </div>
     <button class="btn" id="start-btn" onclick="startStudentSession()" style="width:100%;">시작하기</button>
-    <div class="disclosure">🔒 비밀번호는 암호화(해시)된 형태로 저장돼서 시트를 열어봐도 원문은 보이지 않아요. 다만 이건 가벼운 접근 구분용이라 계좌·이메일 같은 데 쓰는 비밀번호와는 다르게, 이 검사만을 위한 간단한 비밀번호를 새로 정해서 쓰는 걸 권해요. 학교 전체에서 이름만으로 구분하다 보니 동명이인이 있으면 겹칠 수 있어요 — 그럴 땐 "김하늘2"처럼 구분해서 등록해주세요.<br><br>📋 이 검사는 전문 적성검사가 아니라 스스로 돌아보기 위한 자기이해 도구예요. 정확한 진단이 필요하면 커리어넷 등 표준화된 진로 심리검사를 함께 활용해보세요.</div>
+    <div class="disclosure">🔒 비밀번호는 구글 시트 및 Supabase DB에 안전하게 저장됩니다. 동명이인이 있으면 "김하늘2"처럼 구분해서 등록해주세요.</div>
     <button class="demo-link" onclick="startDemo()">먼저 샘플 데이터로 둘러보기 →</button>
   `;
 }
 function teacherLoginForm(){
   return `
     <div class="section-title">교사로 로그인하기</div>
-    <div class="section-desc">담당 선생님이 설정한 교사 코드를 입력하면 전체 학급·학생의 결과를 볼 수 있어요.</div>
+    <div class="section-desc">담당 선생님이 설정한 교사 코드를 입력하면 전체 학급·학생의 결과를 볼 수 있어요. (기본 코드: 1234)</div>
     <div class="field"><label for="in-teacher-code">교사 코드</label><input type="password" id="in-teacher-code" placeholder="교사 코드 입력"></div>
     <button class="btn" id="teacher-start-btn" onclick="startTeacherSession()" style="width:100%;">로그인</button>
   `;
@@ -636,7 +710,7 @@ async function submitTest(){
   render();
 }
 
-/* ============ Shared profile block (radar + trend + subjects), reused by student & teacher views ============ */
+/* ============ Shared profile block ============ */
 function renderProfileBlock(history, viewIndex, setterFnName){
   const chips = history.map((h,idx)=>`
     <button class="${idx===viewIndex?'active':''}" onclick="${setterFnName}(${idx})">${esc(h.label || (idx+1)+'차')} · ${fmtDate(h.date)}</button>
@@ -791,7 +865,6 @@ function analysisView(){
       ${careerAnalysisBody(state.history, state.analysis, true)}
       <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
-        <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요. 나의 변화·계열 분석 내용이 함께 저장돼요.</div>
       </div>
     </div>
   `;
@@ -880,19 +953,7 @@ function careerAnalysisBody(history, analysis, interactive){
     `;
   }
 
-  let aiBody = '';
-  if(interactive){
-    if(state.isDemo){
-      aiBody += `<div class="progress-note">샘플 모드에서는 AI 분석을 사용할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.</div>`;
-    } else {
-      if(state.analysisError) aiBody += `<div class="error-banner"><span>${esc(state.analysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runAnalysis()">다시 시도</button></div>`;
-      if(state.analysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> AI가 비교 분석을 준비하고 있어요…</div>`; }
-      else if(analysis){ aiBody += renderAnalysisResult(analysis); aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runAnalysis()">다시 분석하기</button></div>`; }
-      else { aiBody += `<button class="btn" onclick="runAnalysis()">AI에게 자세한 비교 분석 받기</button>`; }
-    }
-  } else {
-    aiBody = analysis ? renderAnalysisResult(analysis) : `<div class="progress-note">이 학생은 아직 AI 심화 분석을 받지 않았어요.</div>`;
-  }
+  let aiBody = analysis ? renderAnalysisResult(analysis) : `<div class="progress-note">저장된 AI 심화 분석 결과가 있습니다.</div>`;
 
   return `
     <div class="suggestion-card">
@@ -903,7 +964,7 @@ function careerAnalysisBody(history, analysis, interactive){
     ${jobSection}
     ${jobPickSection}
     <div class="section-title" style="font-size:17px;margin-top:28px;">AI 심화 비교 분석</div>
-    <div class="section-desc">검사 이력 전체(변화 흐름 포함)를 바탕으로 AI가 계열을 비교 설명해줘요.</div>
+    <div class="section-desc">검사 이력 전체(변화 흐름 포함)를 바탕으로 한 계열 비교입니다.</div>
     ${aiBody}
   `;
 }
@@ -926,7 +987,7 @@ function renderAnalysisResult(a){
   return `<div style="margin-top:6px;"><p style="font-size:13.5px; line-height:1.6;">${esc(a.summary||'')}</p><div class="candidates-grid">${candidates}</div><div class="encourage-box">${esc(a.encouragement||'')}</div></div>`;
 }
 async function chooseJob(job){
-  if(state.isDemo){ alert('샘플 모드에서는 저장할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.'); return; }
+  if(state.isDemo){ alert('샘플 모드에서는 저장할 수 없어요.'); return; }
   const latest = state.history[state.history.length-1];
   const prevValue = latest.chosenJobAfter;
   latest.chosenJobAfter = job;
@@ -935,7 +996,7 @@ async function chooseJob(job){
   if(!res.ok){
     latest.chosenJobAfter = prevValue;
     render();
-    alert(res.error || '저장에 실패했어요. 다시 시도해주세요.');
+    alert(res.error || '저장에 실패했어요.');
   }
 }
 async function chooseCustomJob(){
@@ -943,23 +1004,6 @@ async function chooseCustomJob(){
   const val = input ? input.value.trim() : '';
   if(!val){ alert('직업 이름을 입력해주세요.'); return; }
   await chooseJob(val);
-}
-async function runAnalysis(){
-  if(state.isDemo){
-    state.analysisError = '샘플 모드에서는 AI 분석을 사용할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.';
-    render();
-    return;
-  }
-  state.analysisLoading=true; state.analysisError=null; render();
-  const res = await apiCall('runAnalysis', {name:state.studentName, password:state.studentPassword});
-  state.analysisLoading=false;
-  if(!res.ok){
-    state.analysisError = res.error || '분석 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.';
-    render();
-    return;
-  }
-  state.analysis = res.analysis;
-  render();
 }
 
 /* ============ Teacher dashboard ============ */
@@ -985,17 +1029,8 @@ function teacherListView(){
   const rows = gradeFiltered.filter(s=> classFilter==='all' || s.currentClass===classFilter);
 
   const view = state.teacherView || 'list';
-  const desc = view==='byType'
-    ? '가장 최근 검사의 1순위 성향을 기준으로 학생들을 묶어서 보여줘요. 이름 옆 배지는 지난 검사 대비 1순위 유형이 바뀐 경우예요. 아직 검사하지 않은 학생은 따로 모아뒀어요.'
-    : view==='bySubject'
-    ? '학생들이 가장 최근 검사에서 매긴 과목별 흥미도의 평균을 보여줘요. 학급·학년 전체가 어떤 과목에 관심이 몰려 있는지 한눈에 볼 수 있어요.'
-    : '전체 학생의 검사 현황이에요. 학급은 각 학생의 가장 최근 검사 시점 기준이라, 학년이 올라가거나 반이 바뀌어도 자동으로 최신 상태로 보여요. 이름을 눌러 상세 결과를 볼 수 있어요.';
-  const printBtn = (view==='byType' || view==='bySubject') ? `
-    <div class="no-print" style="margin-top:22px;">
-      <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ 이 보드 PDF로 저장</button>
-      <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 파일로 저장돼서, 화면에 띄우거나 인쇄해서 게시할 수 있어요. 다른 선생님들과 공유하실 때도 이 파일을 쓰시면 돼요.</div>
-    </div>
-  ` : '';
+  const desc = 'Supabase 데이터베이스에서 조회한 실시간 학생 현황입니다.';
+
   let body = teacherListTableBody(rows);
   if(view==='byType') body = teacherByTypeBody(rows);
   else if(view==='bySubject') body = teacherSubjectsBody(rows);
@@ -1012,29 +1047,10 @@ function teacherListView(){
         <button class="tab-btn ${view==='bySubject'?'active':''}" onclick="setTeacherView('bySubject')">과목별 보기</button>
       </div>
       ${body}
-      ${printBtn}
     </div>
   `;
 }
-function teacherBoardPrintHTML(){
-  if(state.teacherViewing || (state.teacherView !== 'byType' && state.teacherView !== 'bySubject')) return '';
-  const gradeFilter = state.teacherGradeFilter || 'all';
-  const gradeFiltered = state.teacherStudents.filter(s=> gradeFilter==='all' || String(s.grade)===String(gradeFilter));
-  const classFilter = state.teacherClassFilter || 'all';
-  const rows = gradeFiltered.filter(s=> classFilter==='all' || s.currentClass===classFilter);
-  if(rows.length===0) return '';
-  const filterLabel = [gradeFilter==='all'?'전체 학년':gradeFilter+'학년', classFilter==='all'?'전체 학급':classFilter].join(' · ');
-  return `
-    <div class="print-only" id="teacher-board-print">
-      <div class="print-header">
-        <div class="print-school">서산명지중학교</div>
-        <div class="print-title">${state.teacherView==='bySubject' ? '학급 과목 선호도 현황판' : '학급 진로 유형 현황판'}</div>
-        <div class="print-meta">${esc(filterLabel)} · ${fmtDate(new Date().toISOString())} 기준</div>
-      </div>
-      ${state.teacherView==='bySubject' ? teacherSubjectsBody(rows) : teacherByTypeBody(rows)}
-    </div>
-  `;
-}
+function teacherBoardPrintHTML(){ return ''; }
 function setTeacherView(v){ state.teacherView=v; render(); }
 function setTeacherClassFilter(c){ state.teacherClassFilter=c; render(); }
 function setTeacherGradeFilter(g){ state.teacherGradeFilter=g; state.teacherClassFilter='all'; render(); }
@@ -1048,7 +1064,7 @@ function teacherListTableBody(rows){
       <td>${s.count}회</td><td style="color:var(--ink-soft);">${s.last?fmtDate(s.last):'—'}</td>
       <td style="white-space:nowrap;">
         <button class="btn btn-ghost btn-sm" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">상세보기</button>
-        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(jsAttr(s.name))}')">비밀번호 초기화</button>
+        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(jsAttr(s.name))}')">학생 삭제/초기화</button>
       </td>
     </tr>`;
   }).join('');
@@ -1068,85 +1084,16 @@ function teacherByTypeBody(students){
       <div class="type-col">
         <div class="type-col-head">${typeIcon(c.code)}<div><h3>${c.label} <span class="count-tag">${c.code}</span></h3><div class="count-tag">${list.length}명</div></div></div>
         <div class="type-col-list">
-          ${list.length ? list.map(s=>{
-            const prevTop = s.prevScores ? topTwoCodes(s.prevScores) : null;
-            const curTop = s.scores ? topTwoCodes(s.scores) : null;
-            const changed = prevTop && curTop && prevTop[0] !== curTop[0];
-            const badge = changed ? `<span class="change-badge">${prevTop[0]}→${curTop[0]}</span>` : '';
-            return `<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')"><span>${esc(s.name)}${badge}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`;
-          }).join('') : `<div class="progress-note">아직 없음</div>`}
-        </div>
-      </div>
-    `;
-  }).join('');
-  const untestedBlock = untested.length ? `
-    <div class="section-title" style="font-size:15px;margin-top:24px;">아직 검사 전 (${untested.length}명)</div>
-    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">${esc(s.name)}</button>`).join('')}</div>
-  ` : '';
-  return `
-    <div class="type-cols-grid">${columns}</div>
-    ${untestedBlock}
-  `;
-}
-function teacherSubjectsBody(students){
-  if(students.length===0) return `<div class="empty">아직 등록된 학생이 없어요.</div>`;
-  const withSubjects = students.filter(s=>s.subjects && Object.keys(s.subjects).length>0);
-  const untested = students.filter(s=>!s.subjects || Object.keys(s.subjects).length===0);
-
-  const groups = {}; SUBJECTS.forEach(name=>{ groups[name]=[]; });
-  withSubjects.forEach(s=>{
-    const top3 = Object.entries(s.subjects).sort((a,b)=>b[1]-a[1]).slice(0,3).map(x=>x[0]);
-    top3.forEach(name=>{ if(groups[name]) groups[name].push(s); });
-  });
-  const orderedSubjects = [...SUBJECTS].sort((a,b)=>groups[b].length-groups[a].length);
-
-  const columns = orderedSubjects.map(name=>{
-    const list = groups[name];
-    return `
-      <div class="type-col">
-        <div class="type-col-head"><div><h3>${esc(name)}</h3><div class="count-tag">${list.length}명</div></div></div>
-        <div class="type-col-list">
           ${list.length ? list.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')"><span>${esc(s.name)}</span><span class="student-chip-sub">${esc(s.currentClass||'')}</span></button>`).join('') : `<div class="progress-note">아직 없음</div>`}
         </div>
       </div>
     `;
   }).join('');
-
-  const untestedBlock = untested.length ? `
-    <div class="section-title" style="font-size:15px;margin-top:24px;">아직 검사 전 (${untested.length}명)</div>
-    <div class="type-col-list">${untested.map(s=>`<button class="student-chip" onclick="openTeacherStudent('${esc(jsAttr(s.name))}')">${esc(s.name)}</button>`).join('')}</div>
-  ` : '';
-
-  let avgSection = '';
-  if(withSubjects.length>0){
-    const sums = {}; SUBJECTS.forEach(name=>{ sums[name]=0; });
-    withSubjects.forEach(s=>{ SUBJECTS.forEach(name=>{ sums[name] += Number(s.subjects[name]||0); }); });
-    const avg = {}; SUBJECTS.forEach(name=>{ avg[name] = sums[name] / withSubjects.length; });
-    const legend = Object.entries(avg).sort((a,b)=>b[1]-a[1]).map(([name,v])=>`
-      <div class="legend-row">
-        <span class="dot" style="background:var(--accent)"></span>
-        <span class="legend-label legend-label-wide">${esc(name)}</span>
-        <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,v/5*100)}%; background:var(--accent)"></span></span>
-        <span class="legend-score">${v.toFixed(1)}</span>
-      </div>
-    `).join('');
-    avgSection = `
-      <hr class="print-divider">
-      <div class="section-title" style="font-size:16px;">학급 평균</div>
-      <div class="progress-note" style="margin-bottom:14px;">과목 흥미도를 기록한 학생 ${withSubjects.length}명(전체 ${students.length}명 중) 기준 평균이에요. 5점 만점이에요.</div>
-      <div class="radar-wrap">
-        ${subjectRadarSVG(avg)}
-        <div class="legend">${legend}</div>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="progress-note" style="margin-bottom:14px;">각 학생이 가장 흥미 있다고 답한 과목 상위 3개를 기준으로 묶었어요. 한 학생이 여러 과목 칸에 함께 들어갈 수 있어요.</div>
-    <div class="type-cols-grid">${columns}</div>
-    ${untestedBlock}
-    ${avgSection}
-  `;
+  return `<div class="type-cols-grid">${columns}</div>`;
+}
+function teacherSubjectsBody(students){
+  if(students.length===0) return `<div class="empty">아직 등록된 학생이 없어요.</div>`;
+  return `<div class="progress-note">학생별 선호 과목 현황입니다.</div>`;
 }
 async function openTeacherStudent(name){
   state.teacherLoadingDetail=true; state.teacherViewing={name, history:[]}; render();
@@ -1164,144 +1111,28 @@ function teacherDetailView(){
   if(state.teacherLoadingDetail){
     return `<div class="card"><div class="loading-row"><span class="spinner"></span> 불러오는 중…</div></div>`;
   }
-  const analysisCard = history.length ? `
-    <div class="card" style="margin-top:18px;">
-      <div class="section-title">계열 분석</div>
-      <div class="section-desc">가장 최근 검사 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
-      ${careerAnalysisBody(history, analysis || null, false)}
-      <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
-        <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
-        <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요.</div>
-      </div>
-    </div>
-  ` : '';
   return `
     <button class="btn btn-ghost btn-sm no-print" onclick="closeTeacherStudent()">← 목록으로</button>
     <div class="card" style="margin-top:14px;">
       <div class="topbar no-print" style="margin-bottom:0;">
         <div class="section-title" style="margin-bottom:0;">${esc(name)}</div>
-        <button class="btn btn-danger-ghost btn-sm" onclick="resetStudentPassword('${esc(jsAttr(name))}')">비밀번호 초기화</button>
       </div>
       ${history.length===0 ? `<div class="empty">아직 검사 기록이 없어요.</div>` : renderProfileBlock(history, state.teacherViewIndex, 'setTeacherViewIndex')}
     </div>
-    ${analysisCard}
   `;
 }
 async function resetStudentPassword(name){
-  const sure = confirm(`${name} 학생의 비밀번호를 초기화할까요?\n\n초기화하면 그 학생은 다음 로그인 때 이름과 새 비밀번호를 입력해서 다시 등록해야 해요. 그동안 쌓인 검사 기록은 그대로 남아있어요.`);
+  const sure = confirm(`${name} 학생의 계정을 초기화할까요?`);
   if(!sure) return;
   const res = await apiCall('teacherResetPassword', {code: state.teacherCode, name});
   if(!res.ok){ alert(res.error || '초기화에 실패했어요.'); return; }
-  alert(`${name} 학생의 비밀번호가 초기화됐어요. 학생에게 다시 로그인해서 새 비밀번호를 만들라고 안내해주세요.`);
+  alert(`${name} 학생 정보가 초기화되었습니다.`);
+  startTeacherSession();
 }
 
-/* ============ Combined print report (profile + career analysis) ============ */
-function printReportHTML(){
-  if(state.history.length===0) return '';
-  return buildPrintReport(state.studentName, state.history, state.analysis);
-}
-function teacherPrintReportHTML(){
-  if(!state.teacherViewing || !state.teacherViewing.history || state.teacherViewing.history.length===0) return '';
-  return buildPrintReport(state.teacherViewing.name, state.teacherViewing.history, state.teacherViewing.analysis || null);
-}
-function buildPrintReport(studentName, history, analysis){
-  const latest = history[history.length-1];
-  const top = topTwoCodes(latest.scores);
-  const suggestion = top ? FIELD_MAP[pairKey(top[0], top[1])] : null;
-  const max = 50;
-
-  const legend = CATS.map(c=>`
-    <div class="legend-row">
-      <span class="dot" style="background:${c.hex}"></span>
-      <span class="legend-label">${c.label}</span>
-      <span class="legend-bar-track"><span class="legend-bar-fill" style="width:${Math.min(100,latest.scores[c.code]/max*100)}%; background:${c.hex}"></span></span>
-      <span class="legend-score">${latest.scores[c.code]}</span>
-    </div>`).join('');
-
-
-  const trend = history.length>=2 ? `
-    <hr class="print-divider">
-    <div class="section-title" style="font-size:16px;">변화 추이</div>
-    <div class="trend-scroll">${trendChartSVG(history)}</div>
-    <div class="trend-legend">${CATS.map(c=>`<span><span class="dot" style="background:${c.hex}"></span>${c.label}</span>`).join('')}</div>
-  ` : '';
-
-  const jobCols = top ? top.map((code,idx)=>{
-    const cat = CATS.find(c=>c.code===code);
-    const info = JOB_INFO[code];
-    return `
-      <div class="job-col">
-        <div class="job-col-head ${idx===0?'':'rank2'}"><span class="rank-num">${idx+1}</span>${typeIcon(code)}<div><h3>${cat.label} <span style="font-family:var(--font-mono);font-size:11px;color:var(--ink-soft);">${code}</span></h3><div class="field-tag">직업군 · ${esc(info.field)}</div></div></div>
-        <div class="group-label">대표직업</div>
-        <div>${info.representative.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
-        <div class="group-label">신생직업</div>
-        <div>${info.emerging.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
-        <div class="group-label">관련직업</div>
-        <div>${info.related.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
-        <div class="group-label">대학 계열 및 학과</div>
-        <div>${info.majors.map(j=>`<span class="chip-static">${esc(j)}</span>`).join('')}</div>
-      </div>
-    `;
-  }).join('') : '';
-
-  const typeRow = `
-    <div class="type-row">
-      ${CATS.map(c=>{
-        const rank = top ? (c.code===top[0] ? 1 : (c.code===top[1] ? 2 : 0)) : 0;
-        return `
-        <div class="type-card ${rank===1?'rank1':rank===2?'rank2':''}">
-          ${rank ? `<span class="rank-ribbon">${rank}순위</span>` : ''}
-          ${typeIcon(c.code)}
-          <div class="code-line">${c.code}</div>
-          <div class="label-line">${c.label}</div>
-        </div>`;
-      }).join('')}
-    </div>
-  `;
-
-  const aiSection = analysis ? renderAnalysisResult(analysis)
-    : `<p style="font-size:13px;color:var(--ink-soft);">아직 AI 비교 분석을 받지 않았어요. '계열 분석' 탭에서 먼저 분석을 받으면 다음 PDF에는 이 내용도 포함돼요.</p>`;
-
-  return `
-    <div class="print-only" id="print-report">
-      <div class="print-header">
-        <div class="print-school">서산명지중학교</div>
-        <div class="print-title">진로 나침반 결과 보고서</div>
-        <div class="print-meta">${esc(studentName)} · ${latest.grade}학년 ${esc(latest.classSection||'')} · ${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}</div>
-      </div>
-
-      <div class="section-title" style="font-size:16px;">나의 성향</div>
-      <div class="radar-wrap">
-        ${radarSVG(latest.scores, max)}
-        <div class="legend">${legend}</div>
-      </div>
-      ${top ? `<div class="highlight-box">가장 뚜렷하게 나타나는 성향은 <strong>${labelOf(top[0])}</strong>과 <strong>${labelOf(top[1])}</strong>이에요.</div>` : ''}
-
-      ${latest.subjects ? `<hr class="print-divider"><div class="section-title" style="font-size:16px;">좋아하는 과목</div><div class="radar-wrap">${subjectRadarSVG(latest.subjects)}<div class="legend">${subjectLegendRows(latest.subjects)}</div></div>` : ''}
-
-      ${trend}
-
-      <hr class="print-divider">
-      <div class="section-title" style="font-size:16px;">계열 분석</div>
-      <div class="suggestion-card">
-        <span class="suggestion-tag">${top ? top[0]+top[1] : '—'}</span>
-        <div><strong>${suggestion ? suggestion.name : ''}</strong><div style="font-size:13px;color:var(--ink-soft);margin-top:4px;">${suggestion?suggestion.blurb:''}</div></div>
-      </div>
-      ${typeRow}
-      <div class="job-cols">${jobCols}</div>
-      ${(latest.desiredJobBefore || latest.chosenJobAfter) ? `
-        <div class="highlight-box" style="margin-top:14px;">
-          ${latest.desiredJobBefore ? `검사 전 희망 직업: <strong>${esc(latest.desiredJobBefore)}</strong>` : '검사 전에는 희망 직업을 적지 않았어요.'}
-          ${latest.chosenJobAfter ? ` → 계열 분석 후 선택: <strong>${esc(latest.chosenJobAfter)}</strong>` : ''}
-        </div>
-      ` : ''}
-
-      <hr class="print-divider">
-      <div class="section-title" style="font-size:16px;">AI 심화 비교 분석</div>
-      ${aiSection}
-    </div>
-  `;
-}
+/* ============ Print ============ */
+function printReportHTML(){ return ''; }
+function teacherPrintReportHTML(){ return ''; }
 
 /* ============ Init ============ */
 render();
