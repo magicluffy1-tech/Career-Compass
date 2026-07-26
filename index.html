@@ -202,7 +202,7 @@
 <script>
 /* ============ Supabase & Gemini Key Config ============ */
 const SUPABASE_URL = 'https://scdaurigscugtzqwnnrt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_IwfgX6GJ3JbSkF8M-raW1Q_1Ak7pbOk'; // 내 Supabase anon key
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE'; // 내 Supabase anon key
 const GEMINI_API_KEY = 'AQ.Ab8RN6LfzTdxOHqpWMpTyI8O4Onz2jf9_YsnrkvxxX7d-6JLOQ'; 
 const GEMINI_MODEL = 'gemini-3.6-flash';
 const TEACHER_CODE_SECRET = '135790'; 
@@ -437,6 +437,7 @@ let state = {
   studentName:'', studentPassword:'',
   history:[], viewIndex:0,
   analysis:null, analysisLoading:false, analysisError:null,
+  teacherAnalysisLoading:false, teacherAnalysisError:null,
   teacherCode:'', teacherStudents:[], teacherClassFilter:'all', teacherGradeFilter:'all', teacherView:'list', teacherViewing:null, teacherViewIndex:0, teacherLoadingDetail:false,
 };
 let testAnswers = new Array(QUESTIONS.length).fill(0);
@@ -877,7 +878,7 @@ function analysisView(){
     <div class="card">
       <div class="section-title">계열 분석</div>
       <div class="section-desc">가장 최근 검사(${fmtDate(latest.date)}${latest.label?' · '+esc(latest.label):''}) 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
-      ${careerAnalysisBody(state.history, state.analysis, true)}
+      ${careerAnalysisBody(state.history, state.analysis, true, 'student', null)}
       <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
         <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요. 나의 변화·계열 분석 내용이 함께 저장돼요.</div>
@@ -885,7 +886,7 @@ function analysisView(){
     </div>
   `;
 }
-function careerAnalysisBody(history, analysis, interactive){
+function careerAnalysisBody(history, analysis, interactive, viewerRole, targetName){
   if(history.length===0) return `<div class="empty">아직 검사 기록이 없어요.</div>`;
   const latest = history[history.length-1];
   const top = topTwoCodes(latest.scores);
@@ -970,17 +971,20 @@ function careerAnalysisBody(history, analysis, interactive){
   }
 
   let aiBody = '';
-  if(interactive){
-    if(state.isDemo){
-      aiBody += `<div class="progress-note">샘플 모드에서는 AI 분석을 사용할 수 없어요. 이름·비밀번호로 로그인한 뒤 이용해보세요.</div>`;
+  if(viewerRole === 'teacher'){
+    // 교사만 AI 심화 분석을 실행할 수 있어요. 실행하면 학생 화면에도 자동으로 노출돼요.
+    const safeName = esc(jsAttr(targetName||''));
+    if(state.teacherAnalysisError) aiBody += `<div class="error-banner"><span>${esc(state.teacherAnalysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runTeacherAnalysis('${safeName}')">다시 시도</button></div>`;
+    if(state.teacherAnalysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> Gemini 3.6 Flash 모델이 진로 비교 분석을 생성하고 있어요…</div>`; }
+    else if(analysis){
+      aiBody += renderAnalysisResult(analysis);
+      aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runTeacherAnalysis('${safeName}')">다시 분석하기</button></div>`;
     } else {
-      if(state.analysisError) aiBody += `<div class="error-banner"><span>${esc(state.analysisError)}</span><button class="btn btn-sm" style="background:#8A3A32" onclick="runAnalysis()">다시 시도</button></div>`;
-      if(state.analysisLoading){ aiBody += `<div class="loading-row"><span class="spinner"></span> Gemini 3.6 Flash 모델이 진로 비교 분석을 생성하고 있어요…</div>`; }
-      else if(analysis){ aiBody += renderAnalysisResult(analysis); aiBody += `<div style="margin-top:16px;"><button class="btn btn-ghost btn-sm" onclick="runAnalysis()">다시 분석하기</button></div>`; }
-      else { aiBody += `<button class="btn" onclick="runAnalysis()">AI에게 자세한 비교 분석 받기</button>`; }
+      aiBody += `<button class="btn" onclick="runTeacherAnalysis('${safeName}')">AI 심화 비교 분석 실행</button><div class="progress-note" style="margin-top:8px;">실행하면 이 학생의 '계열 분석' 화면에도 결과가 표시돼요.</div>`;
     }
   } else {
-    aiBody = analysis ? renderAnalysisResult(analysis) : `<div class="progress-note">이 학생은 아직 AI 심화 분석을 받지 않았어요.</div>`;
+    // 학생은 결과만 볼 수 있고, 직접 실행할 수는 없어요.
+    aiBody = analysis ? renderAnalysisResult(analysis) : `<div class="progress-note">아직 선생님이 심화 분석을 진행하지 않았어요. 선생님이 분석을 실행하면 이곳에 표시돼요.</div>`;
   }
 
   return `
@@ -1036,26 +1040,28 @@ async function chooseCustomJob(){
 }
 
 /* ============ Gemini AI 엔진 (3.6 Flash 직접 연동 및 Supabase DB 저장) ============ */
-async function runAnalysis() {
-  if (state.isDemo) {
-    state.analysisError = '샘플 모드에서는 AI 분석을 사용할 수 없습니다.';
-    render();
+async function runTeacherAnalysis(name) {
+  // AI 심화 비교 분석은 교사만 실행할 수 있어요. 학생은 실행 버튼 자체가 화면에 없고,
+  // 교사가 실행해서 저장한 결과가 있을 때만 학생 쪽 화면에도 노출돼요(getAnalysis 조회 시).
+  if (!name) return;
+  if (!state.teacherCode) {
+    alert('교사 인증 정보가 없어요. 다시 로그인해주세요.');
     return;
   }
 
-  state.analysisLoading = true;
-  state.analysisError = null;
+  state.teacherAnalysisLoading = true;
+  state.teacherAnalysisError = null;
   render();
 
   try {
     const { data: historyData } = await supabaseClient
       .from('history')
       .select('*')
-      .eq('Name', state.studentName);
+      .eq('Name', name);
 
     if (!historyData || historyData.length === 0) {
-      state.analysisLoading = false;
-      state.analysisError = '먼저 검사를 완료해 주세요.';
+      state.teacherAnalysisLoading = false;
+      state.teacherAnalysisError = '이 학생은 아직 검사 기록이 없어요.';
       render();
       return;
     }
@@ -1116,7 +1122,7 @@ ${jobLine}
     const { data: existingAnalysis } = await supabaseClient
       .from('analysis')
       .select('id')
-      .eq('Name', state.studentName);
+      .eq('Name', name);
 
     if (existingAnalysis && existingAnalysis.length > 0) {
       await supabaseClient
@@ -1125,25 +1131,28 @@ ${jobLine}
           AnalysisJSON: JSON.stringify(cleanJson),
           UpdatedAt: new Date().toLocaleString('ko-KR')
         })
-        .eq('Name', state.studentName);
+        .eq('Name', name);
     } else {
       await supabaseClient
         .from('analysis')
         .insert([{
-          Name: state.studentName,
+          Name: name,
           AnalysisJSON: JSON.stringify(cleanJson),
           UpdatedAt: new Date().toLocaleString('ko-KR')
         }]);
     }
 
-    state.analysis = cleanJson;
-    state.analysisLoading = false;
+    // 교사가 보고 있는 학생 화면이 여전히 같은 학생일 때만 화면에 즉시 반영
+    if (state.teacherViewing && state.teacherViewing.name === name) {
+      state.teacherViewing.analysis = cleanJson;
+    }
+    state.teacherAnalysisLoading = false;
     render();
 
   } catch (err) {
     console.error('AI 분석 에러:', err);
-    state.analysisLoading = false;
-    state.analysisError = 'Gemini API 호출에 실패했습니다. 키 설정을 확인해 주세요.';
+    state.teacherAnalysisLoading = false;
+    state.teacherAnalysisError = 'Gemini API 호출에 실패했습니다. 키 설정을 확인해 주세요.';
     render();
   }
 }
@@ -1363,7 +1372,7 @@ function teacherDetailView(){
     <div class="card" style="margin-top:18px;">
       <div class="section-title">계열 분석</div>
       <div class="section-desc">가장 최근 검사 결과를 기준으로 상위 2개 성향과 어울리는 진로 계열을 살펴봐요.</div>
-      ${careerAnalysisBody(history, analysis || null, false)}
+      ${careerAnalysisBody(history, analysis || null, false, 'teacher', name)}
       <div class="no-print" style="margin-top:24px; border-top:1px solid var(--line); padding-top:20px;">
         <button class="btn btn-ghost btn-sm" onclick="window.print()">🖨️ PDF로 저장</button>
         <div class="progress-note" style="margin-top:8px;">인쇄 대화상자에서 '대상'을 PDF로 저장으로 바꾸면 돼요.</div>
