@@ -205,15 +205,37 @@
 <body>
 <div id="root"></div>
 <script>
-/* ============ Supabase & Gemini Key Config ============ */
+/* ============ Supabase Config ============ */
+// ⚠️ 교사 코드(TEACHER_CODE_SECRET)와 Gemini API 키는 더 이상 이 파일에 없어요.
+// 두 값 모두 Supabase Edge Function('teacher-api') 안에서만 검증/사용돼요.
 const SUPABASE_URL = 'https://scdaurigscugtzqwnnrt.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_IwfgX6GJ3JbSkF8M-raW1Q_1Ak7pbOk'; // 내 Supabase anon key
-const GEMINI_API_KEY = 'AQ.Ab8RN6LfzTdxOHqpWMpTyI8O4Onz2jf9_YsnrkvxxX7d-6JLOQ'; 
-const GEMINI_MODEL = 'gemini-3.6-flash';
-const TEACHER_CODE_SECRET = '135790'; 
+const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY_HERE'; // 내 Supabase anon key
+const TEACHER_FN_URL = `${SUPABASE_URL}/functions/v1/teacher-api`;
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const API_CONFIGURED = SUPABASE_ANON_KEY.indexOf('YOUR_') === -1;
+
+// 교사 전용 요청은 전부 이 함수를 통해 Edge Function으로 보내요.
+// 코드 검증과 Gemini 호출은 전적으로 서버(Edge Function) 안에서만 일어나요.
+async function teacherApiCall(action, payload){
+  if(!API_CONFIGURED) return {ok:false, error:'아직 Supabase API Key가 설정되지 않았어요.'};
+  try{
+    const res = await fetch(TEACHER_FN_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'apikey': SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ action, ...payload })
+    });
+    const data = await res.json();
+    return data;
+  } catch(err){
+    console.error('teacher-api 호출 실패:', err);
+    return {ok:false, error:'서버(Edge Function) 호출에 실패했어요.'};
+  }
+}
 
 async function apiCall(action, payload){
   if(!API_CONFIGURED) return {ok:false, error:'아직 Supabase API Key가 설정되지 않았어요.'};
@@ -263,36 +285,9 @@ async function apiCall(action, payload){
       return {ok:true};
     }
 
-    if(action === 'teacherOverview') {
-      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'교사 코드가 올바르지 않아요.'};
-      const { data: stList } = await supabaseClient.from('students').select('*');
-      const { data: hList } = await supabaseClient.from('history').select('*');
+    // teacherOverview / teacherStudentDetail / teacherResetPassword / runAnalysis는
+    // 이제 여기(client)가 아니라 teacherApiCall()을 통해 Edge Function에서 처리해요.
 
-      const students = (stList || []).map(st => {
-        const myHist = (hList || []).filter(h => h.Name === st.Name);
-        const last = myHist.length > 0 ? myHist[myHist.length - 1] : null;
-        return {
-          name: st.Name, count: myHist.length, last: last ? last.Timestamp : null, grade: last ? Number(last.Grade) : 1,
-          currentClass: last ? `${last.Grade}학년 ${last.ClassSection}` : '1학년 미검사',
-          scores: last ? (typeof last.ScoresJSON === 'string' ? JSON.parse(last.ScoresJSON) : last.ScoresJSON) : null,
-          subjects: last ? (typeof last.SubjectsJSON === 'string' ? JSON.parse(last.SubjectsJSON) : last.SubjectsJSON) : null
-        };
-      });
-      return {ok:true, students};
-    }
-
-    if(action === 'teacherStudentDetail') {
-      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'권한이 없습니다.'};
-      const histRes = await apiCall('getHistory', {name: payload.name});
-      const anaRes = await apiCall('getAnalysis', {name: payload.name});
-      return {ok:true, history: histRes.history, analysis: anaRes.analysis};
-    }
-
-    if(action === 'teacherResetPassword') {
-      if(payload.code !== TEACHER_CODE_SECRET) return {ok:false, error:'권한이 없습니다.'};
-      await supabaseClient.from('students').delete().eq('Name', payload.name);
-      return {ok:true};
-    }
 
     return {ok:false, error:'Unknown action'};
   }catch(err){
@@ -579,7 +574,7 @@ async function startTeacherSession(){
   const code = (document.getElementById('in-teacher-code').value||'').trim();
   if(!code){ alert('교사 코드를 입력해주세요.'); return; }
   btn.disabled=true; btn.textContent='확인하는 중…';
-  const res = await apiCall('teacherOverview', {code});
+  const res = await teacherApiCall('teacherOverview', {code});
   if(!res.ok){ alert(res.error || '코드가 올바르지 않아요.'); btn.disabled=false; btn.textContent='로그인'; return; }
   state.teacherCode = code;
   state.teacherStudents = res.students || [];
@@ -1056,6 +1051,10 @@ async function chooseCustomJob(){
 async function runTeacherAnalysis(name) {
   // AI 심화 비교 분석은 교사만 실행할 수 있어요. 학생은 실행 버튼 자체가 화면에 없고,
   // 교사가 실행해서 저장한 결과가 있을 때만 학생 쪽 화면에도 노출돼요(getAnalysis 조회 시).
+  //
+  // 실제 분석 로직(히스토리 조회, 프롬프트 생성, Gemini 호출, DB 저장)은
+  // 전부 Supabase Edge Function(teacher-api) 안에서 이뤄져요.
+  // 여기서는 교사 코드와 학생 이름만 실어서 요청하고 결과만 받아와요.
   if (!name) return;
   if (!state.teacherCode) {
     alert('교사 인증 정보가 없어요. 다시 로그인해주세요.');
@@ -1066,120 +1065,21 @@ async function runTeacherAnalysis(name) {
   state.teacherAnalysisError = null;
   render();
 
-  try {
-    const { data: historyData } = await supabaseClient
-      .from('history')
-      .select('*')
-      .eq('Name', name);
+  const res = await teacherApiCall('runAnalysis', { code: state.teacherCode, name });
 
-    if (!historyData || historyData.length === 0) {
-      state.teacherAnalysisLoading = false;
-      state.teacherAnalysisError = '이 학생은 아직 검사 기록이 없어요.';
-      render();
-      return;
-    }
-
-    const history = historyData.map(r => ({
-      date: r.Timestamp,
-      grade: r.Grade,
-      label: r.Label,
-      scores: typeof r.ScoresJSON === 'string' ? JSON.parse(r.ScoresJSON) : r.ScoresJSON,
-      subjects: typeof r.SubjectsJSON === 'string' ? JSON.parse(r.SubjectsJSON) : r.SubjectsJSON,
-      desiredJobBefore: r.H1,
-      chosenJobAfter: r.H2
-    }));
-
-    const histLines = history.map((h, idx) => {
-      const s = h.scores;
-      return `${idx + 1}차(${h.label || '학년 ' + h.grade}, ${h.date}): 현실형${s.R} 탐구형${s.I} 예술형${s.A} 사회형${s.S} 기업형${s.E} 관습형${s.C}`;
-    }).join('\n');
-
-    const latest = history[history.length - 1];
-    let subjLine = '기록 없음';
-    if (latest.subjects) {
-      subjLine = Object.entries(latest.subjects)
-        .sort((a, b) => b[1] - a[1])
-        .map(p => `${p[0]} ${p[1]}점`)
-        .join(', ');
-    }
-
-    let jobLine = '';
-    if (latest.desiredJobBefore) jobLine += `검사 전 희망 직업: ${latest.desiredJobBefore}. `;
-    if (latest.chosenJobAfter) jobLine += `계열 분석을 본 뒤 선택한 직업: ${latest.chosenJobAfter}. `;
-
-    const prompt = `다음은 한 중학생이 학기마다 반복해서 응시한 진로 성향 검사(RIASEC 방식, 각 항목 10~50점)의 누적 기록과, 가장 최근 검사에서 함께 응답한 과목별 흥미도(5점 만점)입니다.
-
-${histLines}
-
-가장 최근 과목 흥미도(높은 순): ${subjLine}
-${jobLine}
-
-이 학생은 아직 세부 진로보다 '자신이 어떤 큰 계열에 더 잘 맞는지'부터 감을 잡아야 하는 중학생입니다. 다음 두 단계로 분석해주세요.
-
-[1단계 - 큰 틀(계열) 먼저 정하기]
-아래 4가지 계열 중에서 이 학생의 RIASEC 점수와 좋아하는 과목을 근거로 가장 잘 맞는 계열 1개를 고르세요(경계선에 가까우면 2개까지 언급 가능):
-- 자연과학·공학계열(이과): 탐구형(I)·현실형(R) 성향이 강하고 수학·과학 계열 과목을 좋아하는 경우
-- 인문·사회과학계열(문과): 사회형(S)·기업형(E) 성향이 강하고 국어·사회·외국어 계열 과목을 좋아하는 경우
-- 예술·체육계열: 예술형(A) 성향이 강하거나 음악·미술·체육 과목을 뚜렷하게 좋아하는 경우
-- 아직 특정 계열로 뚜렷하게 쏠리지 않고 여러 성향이 고르게 나타나는 경우: '균형·탐색형'으로 정직하게 안내
-
-고른 계열의 정확한 이름과, 왜 그 계열이 맞는지(성향 점수+좋아하는 과목을 구체적 근거로) 학생이 이해하기 쉬운 존댓말로 2~3문장 설명하세요. 이건 지금 시점의 참고용 방향이며 언제든 바뀔 수 있다는 점도 자연스럽게 담아주세요.
-
-[2단계 - 그 계열 안에서 구체적인 세부 진로 후보 좁히기]
-1단계에서 고른 큰 계열 안에서(균형·탐색형인 경우 상위 2개 성향과 어울리는 폭넓은 후보로), 어울리는 세부 진로 계열을 2~3개 골라 서로 비교해서 설명해주세요. 특히 좋아하는 과목이 어떤 세부 계열과 자연스럽게 이어지는지도 한 문장 정도 짚어주세요.${jobLine ? ' 위에 적힌 희망/선택 직업이 있다면, 그것과 검사 결과가 얼마나 비슷하거나 다른지도 한 문장 정도 짚어주세요.' : ''} 기록이 2회 이상이면 시간에 따른 변화 흐름도 한 문장 정도 언급해주세요. 중학생이 읽기 쉬운 존댓말로 작성하고, 이건 확정이 아니라 지금 시점의 탐색 결과라는 점을 강조해주세요.
-
-반드시 아래 JSON 형식으로만 응답하세요. 다른 설명, 코드블록 표시(백틱) 없이 순수 JSON 하나만 출력하세요:
-{"broad_track":{"name":"위 4가지 중 고른 계열 이름(예: 자연과학·공학계열(이과))","reason":"그 계열이 맞는 이유 2~3문장"},"summary":"전체 성향·과목 흥미와 변화 흐름 요약 1~2문장","candidates":[{"field":"세부 계열 이름","match_reason":"왜 어울리는지 1~2문장","typical_activities":"이 계열에서 주로 하는 활동 1문장","careers":["직업1","직업2","직업3"],"related_subjects":["관련 과목 영역1","관련 과목 영역2"]}],"encouragement":"탐색 단계임을 강조하는 격려 1~2문장"}`;
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    });
-
-    const resJson = await response.json();
-    const rawText = resJson.candidates[0].content.parts[0].text;
-    const cleanJson = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-
-    const { data: existingAnalysis } = await supabaseClient
-      .from('analysis')
-      .select('id')
-      .eq('Name', name);
-
-    if (existingAnalysis && existingAnalysis.length > 0) {
-      await supabaseClient
-        .from('analysis')
-        .update({
-          AnalysisJSON: JSON.stringify(cleanJson),
-          UpdatedAt: new Date().toLocaleString('ko-KR')
-        })
-        .eq('Name', name);
-    } else {
-      await supabaseClient
-        .from('analysis')
-        .insert([{
-          Name: name,
-          AnalysisJSON: JSON.stringify(cleanJson),
-          UpdatedAt: new Date().toLocaleString('ko-KR')
-        }]);
-    }
-
-    // 교사가 보고 있는 학생 화면이 여전히 같은 학생일 때만 화면에 즉시 반영
-    if (state.teacherViewing && state.teacherViewing.name === name) {
-      state.teacherViewing.analysis = cleanJson;
-    }
+  if (!res.ok) {
     state.teacherAnalysisLoading = false;
+    state.teacherAnalysisError = res.error || 'AI 분석에 실패했어요.';
     render();
-
-  } catch (err) {
-    console.error('AI 분석 에러:', err);
-    state.teacherAnalysisLoading = false;
-    state.teacherAnalysisError = 'Gemini API 호출에 실패했습니다. 키 설정을 확인해 주세요.';
-    render();
+    return;
   }
+
+  // 교사가 보고 있는 학생 화면이 여전히 같은 학생일 때만 화면에 즉시 반영
+  if (state.teacherViewing && state.teacherViewing.name === name) {
+    state.teacherViewing.analysis = res.analysis;
+  }
+  state.teacherAnalysisLoading = false;
+  render();
 }
 
 /* ============ Teacher dashboard ============ */
@@ -1378,7 +1278,7 @@ function teacherSubjectsBody(students){
 
 async function openTeacherStudent(name){
   state.teacherLoadingDetail=true; state.teacherViewing={name, history:[]}; render();
-  const res = await apiCall('teacherStudentDetail', {code:state.teacherCode, name});
+  const res = await teacherApiCall('teacherStudentDetail', {code:state.teacherCode, name});
   state.teacherLoadingDetail=false;
   if(!res.ok){ alert(res.error || '학생 정보를 불러오지 못했어요.'); state.teacherViewing=null; render(); return; }
   state.teacherViewing = {name, history: res.history || [], analysis: res.analysis || null};
@@ -1420,7 +1320,7 @@ function teacherDetailView(){
 async function resetStudentPassword(name){
   const sure = confirm(`${name} 학생의 비밀번호를 초기화할까요?\n\n초기화하면 그 학생은 다음 로그인 때 이름과 새 비밀번호를 입력해서 다시 등록해야 해요. 그동안 쌓인 검사 기록은 그대로 남아있어요.`);
   if(!sure) return;
-  const res = await apiCall('teacherResetPassword', {code: state.teacherCode, name});
+  const res = await teacherApiCall('teacherResetPassword', {code: state.teacherCode, name});
   if(!res.ok){ alert(res.error || '초기화에 실패했어요.'); return; }
   alert(`${name} 학생의 비밀번호가 초기화됐어요. 학생에게 다시 로그인해서 새 비밀번호를 만들라고 안내해주세요.`);
 }
